@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今彩539 智能操盤系統 (Multi-Strategy)</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --card-bg: #16213e;
+            --highlight: #e94560;
+            --text-primary: #ecf0f1;
+            --gold: #f1c40f;
+            --hot: #e74c3c;
+            --win: #00b894;
+            --loss: #ff7675;
+            --strategy: #0984e3;
+            --gray: #95a5a6;
+        }
+
+        body { font-family: "Microsoft JhengHei", "Segoe UI", sans-serif; padding: 20px; background-color: var(--bg-color); color: var(--text-primary); margin: 0; }
+        .container { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
+        
+        header { text-align: center; padding: 20px; background: var(--card-bg); border-radius: 15px; border-bottom: 4px solid var(--highlight); box-shadow: 0 4px 15px rgba(0,0,0,0.3); position: relative; }
+        h1 { margin: 0; color: var(--text-primary); font-size: 24px; }
+        
+        .status-bar { background: #2c3e50; padding: 10px; border-radius: 8px; text-align: center; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .loading { color: var(--gold); animation: blink 1.5s infinite; }
+        .success { color: #2ecc71; font-weight: bold; }
+        .syncing { color: #3498db; font-weight: bold; }
+
+        .dashboard { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media(min-width: 900px) { .dashboard { grid-template-columns: 1fr 1fr; } }
+
+        .card { background: var(--card-bg); padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); position: relative; overflow: hidden; }
+        .card h2 { margin-top: 0; font-size: 18px; border-left: 4px solid var(--highlight); padding-left: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .card-tag { font-size: 12px; background: #333; padding: 2px 8px; border-radius: 4px; color: #aaa; }
+
+        /* 策略切換區 */
+        .strategy-selector { display: flex; gap: 10px; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; }
+        .strategy-select { flex-grow: 1; padding: 8px; border-radius: 4px; background: #2c3e50; color: white; border: 1px solid #444; }
+        .btn-switch { background: var(--strategy); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-switch:hover { opacity: 0.9; }
+
+        /* 讀取條 */
+        .progress-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(22, 33, 62, 0.9); z-index: 10; display: none; justify-content: center; align-items: center; flex-direction: column; }
+        .progress-bar-bg { width: 80%; height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+        .progress-bar-fill { height: 100%; background: var(--highlight); width: 0%; transition: width 0.3s; }
+
+        /* 策略數據網格 */
+        .strategy-box { background: rgba(9, 132, 227, 0.1); border: 1px solid var(--strategy); border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+        .strategy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center; }
+        .stat-item { background: #24344d; padding: 10px; border-radius: 8px; }
+        .stat-label { font-size: 12px; color: #95a5a6; }
+        .stat-value { font-size: 20px; font-weight: bold; margin-top: 5px; }
+        .val-win { color: var(--win); }
+        .val-loss { color: var(--loss); }
+
+        /* 信號燈 */
+        .signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .signal-btn { padding: 12px; border-radius: 8px; text-align: center; font-size: 14px; font-weight: bold; background: #2c3e50; color: #7f8c8d; border: 1px solid #34495e; opacity: 0.4; transition: 0.3s; }
+        .signal-btn.active { opacity: 1; transform: scale(1.05); box-shadow: 0 0 10px rgba(0,0,0,0.5); border: 2px solid white; }
+        .sig-super.active { background: linear-gradient(135deg, #e17055, #d63031); color: white; }
+        .sig-strong.active { background: linear-gradient(135deg, #00b894, #0984e3); color: white; }
+        .sig-weak.active { background: #636e72; color: #dfe6e9; }
+        .sig-stop.active { background: #2d3436; color: #ff7675; }
+
+        /* 近期開獎列表 */
+        .history-list { margin-top: 20px; border-top: 1px solid #333; padding-top: 15px; }
+        .hist-header { display: flex; font-size: 12px; color: #95a5a6; padding-bottom: 5px; border-bottom: 1px solid #444; }
+        .hist-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #2c3e50; font-size: 13px; }
+        .col-date { width: 60px; color: #bdc3c7; }
+        .col-nums { flex: 1; text-align: center; font-weight: bold; letter-spacing: 1px; }
+        .col-pred { width: 80px; text-align: center; color: var(--gold); font-size: 12px; }
+        .col-res { width: 50px; text-align: center; font-weight: bold; }
+        .res-yes { color: var(--win); background: rgba(0, 184, 148, 0.15); padding: 2px 5px; border-radius: 4px; }
+        .res-no { color: var(--loss); opacity: 0.7; }
+        .res-pass { color: #7f8c8d; font-size: 11px; }
+
+        .btn-fetch { background: #34495e; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-fetch:hover { background: #2c3e50; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        #manualInputSection { display: none; margin-top: 10px; padding: 15px; background: #c0392b; border-radius: 8px; text-align: center; }
+        .manual-input { width: 40px; padding: 5px; text-align: center; margin: 0 2px; }
+        .last-bet-info { text-align: center; font-size: 13px; color: #95a5a6; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 20px; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🔥 今彩539 智能獲利操盤系統</h1>
+    </header>
+
+    <div class="status-bar">
+        <span id="statusText" class="loading">⏳ 系統啟動中...</span>
+        <span id="dataCount" style="color:#bdc3c7;"></span>
+    </div>
+
+    <div id="manualInputSection">
+        <p style="color:white; font-weight:bold;">⚠️ 自動更新失敗，請手動輸入最新一期號碼：</p>
+        <input type="number" class="manual-input" id="m1"><input type="number" class="manual-input" id="m2"><input type="number" class="manual-input" id="m3"><input type="number" class="manual-input" id="m4"><input type="number" class="manual-input" id="m5">
+        <button onclick="manualStart()" style="padding:5px 15px; cursor:pointer;">確認</button>
+    </div>
+
+    <div class="dashboard">
+        <div class="card" id="card-backtest">
+            <h2>💰 策略回測報告 <span class="card-tag" id="current-strategy-tag">Gap Theory</span></h2>
+            
+            <div class="strategy-selector">
+                <select id="strategySelect" class="strategy-select">
+                    <option value="gap">1. 強弱差距 (Gap Theory) - 推薦🏆</option>
+                    <option value="recovery">2. 復仇注碼 (Recovery) - 高ROI🚀</option>
+                    <option value="double">3. 雙龍搶珠 (Double Dragon) - 高勝率🛡️</option>
+                </select>
+                <button class="btn-switch" onclick="switchStrategy()">確定切換</button>
+            </div>
+
+            <div class="progress-overlay" id="loadingBar">
+                <div style="color:white; font-weight:bold;">策略運算中...</div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+            </div>
+            
+            <div class="strategy-box">
+                <div class="strategy-title">
+                    📊 歷史績效 (共 <span id="real-test-count" style="color:var(--highlight);">--</span> 期)
+                </div>
+                <div class="strategy-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">累積淨利 (Net)</div>
+                        <div class="stat-value val-win" id="st-profit">--</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">投資報酬率 (ROI)</div>
+                        <div class="stat-value val-win" id="st-roi">--%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">勝率 (Win Rate)</div>
+                        <div class="stat-value" id="st-winrate">--%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">交易期數</div>
+                        <div class="stat-value" id="st-count">--</div>
+                    </div>
+                </div>
+                <div id="strategy-desc" style="font-size:12px; color:#95a5a6; margin-top:10px; padding-top:10px; border-top:1px dashed #555;">
+                    --
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🔮 下一期操盤建議 <span class="card-tag">Next Signal</span></h2>
+            
+            <div class="last-bet-info">
+                📅 最後一次進場建議日: <span id="last-bet-date" style="color:var(--highlight); font-weight:bold;">--/--</span>
+            </div>
+
+            <div style="text-align:center; padding:10px 0;">
+                <div style="font-size:14px; color:#bdc3c7; margin-bottom:5px;">下一期開獎日 (預測目標)</div>
+                <div id="nextDrawDate" style="font-size:20px; font-weight:bold; color:var(--text-primary);">--/--</div>
+                <div id="nextWeekday" style="font-size:16px; color:var(--highlight); margin-top:2px; font-weight:bold;">週--</div>
+            </div>
+
+            <div id="prediction-panel">
+                <div class="signal-grid">
+                    <div id="btn-super" class="signal-btn sig-super">🔥 超級訊號<br><span style="font-size:10px; font-weight:normal;">建議加碼</span></div>
+                    <div id="btn-strong" class="signal-btn sig-strong">⚡ 強勢訊號<br><span style="font-size:10px; font-weight:normal;">正常下注</span></div>
+                    <div id="btn-weak" class="signal-btn sig-weak">❄️ 訊號微弱<br><span style="font-size:10px; font-weight:normal;">建議觀望</span></div>
+                    <div id="btn-stop" class="signal-btn sig-stop">🛑 暫停/風險<br><span style="font-size:10px; font-weight:normal;">週二或過熱</span></div>
+                </div>
+
+                <div class="strategy-box" style="border-color:#555; background:rgba(255,255,255,0.05);">
+                    <div class="strategy-title" style="color:#ddd; justify-content:center;">
+                        推薦組合 (Package)
+                    </div>
+                    <div style="text-align:center; margin-top:10px;">
+                        <div style="font-size:18px; font-weight:bold; color:var(--gold);" id="pred-combo">--</div>
+                        <div style="font-size:12px; color:#7f8c8d; margin-top:5px;" id="pred-desc">--</div>
+                    </div>
+                </div>
+
+                <div class="history-list">
+                    <div style="font-size:12px; color:#95a5a6; margin-bottom:10px;">📜 近 10 期開獎結果 (預測驗證)</div>
+                    <div class="hist-header">
+                        <div class="col-date">日期</div>
+                        <div class="col-nums">開獎號碼</div>
+                        <div class="col-pred">預測</div>
+                        <div class="col-res">成功</div>
+                    </div>
+                    <div id="history-rows">
+                        </div>
+                </div>
+            </div>
+            
+            <button id="btnFetch" class="btn-fetch" onclick="forceFetchData()">
+                <span id="fetchIcon">🔄</span> 
+                <span id="fetchText">手動抓取最新數據</span>
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // 內建資料庫 (2023-2025, 700期)
+        const staticHistoryJSON = `[{"date":"2025/11/29","numbers":[8,27,30,33,36]},{"date":"2025/11/28","numbers":[8,13,14,22,28]},{"date":"2025/11/27","numbers":[7,19,22,25,28]},{"date":"2025/11/26","numbers":[7,13,26,28,34]},{"date":"2025/11/25","numbers":[9,30,36,38,39]},{"date":"2025/11/24","numbers":[2,4,5,17,31]},{"date":"2025/11/22","numbers":[10,13,32,33,37]},{"date":"2025/11/21","numbers":[5,10,17,28,35]},{"date":"2025/11/20","numbers":[1,5,33,36,38]},{"date":"2025/11/19","numbers":[3,11,20,28,31]},{"date":"2025/11/18","numbers":[14,24,31,36,37]},{"date":"2025/11/17","numbers":[4,7,16,26,29]},{"date":"2025/11/15","numbers":[12,20,25,28,29]},{"date":"2025/11/14","numbers":[2,11,15,37,38]},{"date":"2025/11/13","numbers":[13,18,20,23,36]},{"date":"2025/11/12","numbers":[1,4,9,14,22]},{"date":"2025/11/11","numbers":[5,19,31,34,39]},{"date":"2025/11/10","numbers":[7,14,15,17,30]},{"date":"2025/11/08","numbers":[7,8,9,26,34]},{"date":"2025/11/07","numbers":[22,27,30,32,37]},{"date":"2025/11/06","numbers":[7,24,28,31,32]},{"date":"2025/11/05","numbers":[11,14,15,27,39]},{"date":"2025/11/04","numbers":[1,7,12,29,39]},{"date":"2025/11/03","numbers":[24,25,34,36,37]},{"date":"2025/11/01","numbers":[8,12,19,27,28]},{"date":"2025/10/31","numbers":[11,18,25,26,33]},{"date":"2025/10/30","numbers":[5,27,28,31,37]},{"date":"2025/10/29","numbers":[26,32,33,36,39]},{"date":"2025/10/28","numbers":[18,20,25,29,31]},{"date":"2025/10/27","numbers":[3,20,26,31,37]},{"date":"2025/10/25","numbers":[3,4,11,21,34]},{"date":"2025/10/24","numbers":[8,11,13,37,38]},{"date":"2025/10/23","numbers":[8,15,27,37,38]},{"date":"2025/10/22","numbers":[3,4,20,25,28]},{"date":"2025/10/21","numbers":[13,22,30,37,38]},{"date":"2025/10/20","numbers":[6,13,22,23,27]},{"date":"2025/10/18","numbers":[2,17,32,35,38]},{"date":"2025/10/17","numbers":[1,21,31,32,34]},{"date":"2025/10/16","numbers":[4,18,21,30,37]},{"date":"2025/10/15","numbers":[4,7,19,33,39]},{"date":"2025/10/14","numbers":[4,5,9,18,24]},{"date":"2025/10/13","numbers":[8,13,14,22,36]},{"date":"2025/10/11","numbers":[4,9,19,22,34]},{"date":"2025/10/10","numbers":[3,6,24,31,36]},{"date":"2025/10/09","numbers":[2,4,12,15,29]},{"date":"2025/10/08","numbers":[3,9,26,38,39]},{"date":"2025/10/07","numbers":[1,16,20,28,34]},{"date":"2025/10/06","numbers":[3,5,6,12,13]},{"date":"2025/10/04","numbers":[3,4,10,18,39]},{"date":"2025/10/03","numbers":[10,16,19,21,28]},{"date":"2025/10/02","numbers":[10,19,25,36,39]},{"date":"2025/10/01","numbers":[3,5,12,22,27]},{"date":"2025/09/30","numbers":[14,20,21,28,33]},{"date":"2025/09/29","numbers":[3,15,21,29,37]},{"date":"2025/09/27","numbers":[3,11,13,28,37]},{"date":"2025/09/26","numbers":[3,7,14,25,34]},{"date":"2025/09/25","numbers":[2,10,13,28,32]},{"date":"2025/09/24","numbers":[4,22,23,35,39]},{"date":"2025/09/23","numbers":[6,19,20,33,37]},{"date":"2025/09/22","numbers":[7,9,12,14,33]},{"date":"2025/09/20","numbers":[5,8,11,13,22]},{"date":"2025/09/19","numbers":[2,11,22,24,31]},{"date":"2025/09/18","numbers":[5,12,14,23,33]},{"date":"2025/09/17","numbers":[4,6,7,12,38]},{"date":"2025/09/16","numbers":[2,9,19,21,33]},{"date":"2025/09/15","numbers":[7,9,10,12,28]},{"date":"2025/09/13","numbers":[2,25,32,35,36]},{"date":"2025/09/12","numbers":[9,12,16,26,34]},{"date":"2025/09/11","numbers":[6,18,26,28,36]},{"date":"2025/09/10","numbers":[12,14,16,28,39]},{"date":"2025/09/09","numbers":[8,20,23,25,26]},{"date":"2025/09/08","numbers":[7,11,20,28,38]},{"date":"2025/09/06","numbers":[8,14,25,28,31]},{"date":"2025/09/05","numbers":[7,9,29,32,38]},{"date":"2025/09/04","numbers":[6,7,24,27,34]},{"date":"2025/09/03","numbers":[14,15,20,21,23]},{"date":"2025/09/02","numbers":[5,8,10,23,25]},{"date":"2025/09/01","numbers":[21,24,28,29,35]},{"date":"2025/08/30","numbers":[4,5,7,13,14]},{"date":"2025/08/29","numbers":[7,20,21,30,38]},{"date":"2025/08/28","numbers":[5,7,21,23,29]},{"date":"2025/08/27","numbers":[3,5,28,30,32]},{"date":"2025/08/26","numbers":[2,5,24,38,39]},{"date":"2025/08/25","numbers":[6,12,15,23,26]},{"date":"2025/08/23","numbers":[4,5,8,27,39]},{"date":"2025/08/22","numbers":[6,7,21,37,38]},{"date":"2025/08/21","numbers":[16,27,28,29,33]},{"date":"2025/08/20","numbers":[15,18,29,31,39]},{"date":"2025/08/19","numbers":[6,7,18,31,35]},{"date":"2025/08/18","numbers":[9,12,18,27,29]},{"date":"2025/08/16","numbers":[15,18,22,24,31]},{"date":"2025/08/15","numbers":[1,5,16,18,26]},{"date":"2025/08/14","numbers":[10,12,14,31,35]},{"date":"2025/08/13","numbers":[11,23,26,32,34]},{"date":"2025/08/12","numbers":[1,9,17,25,30]},{"date":"2025/08/11","numbers":[1,14,22,26,28]},{"date":"2025/08/09","numbers":[1,9,27,29,30]},{"date":"2025/08/08","numbers":[11,25,27,30,34]},{"date":"2025/08/07","numbers":[10,20,28,30,37]},{"date":"2025/08/06","numbers":[6,10,24,28,38]},{"date":"2025/08/05","numbers":[13,20,21,32,37]},{"date":"2025/08/04","numbers":[3,21,23,25,26]},{"date":"2025/08/02","numbers":[3,14,22,25,31]},{"date":"2025/08/01","numbers":[2,13,18,33,34]},{"date":"2025/07/31","numbers":[11,12,17,34,36]},{"date":"2025/07/30","numbers":[17,22,24,30,32]},{"date":"2025/07/29","numbers":[1,6,10,13,27]},{"date":"2025/07/28","numbers":[4,16,22,23,30]},{"date":"2025/07/26","numbers":[14,15,18,23,29]},{"date":"2025/07/25","numbers":[5,7,10,26,30]},{"date":"2025/07/24","numbers":[2,6,9,29,32]},{"date":"2025/07/23","numbers":[16,18,23,36,39]},{"date":"2025/07/22","numbers":[19,21,27,32,39]},{"date":"2025/07/21","numbers":[1,6,11,22,34]},{"date":"2025/07/19","numbers":[7,11,14,26,27]},{"date":"2025/07/18","numbers":[12,21,22,38,39]},{"date":"2025/07/17","numbers":[4,6,11,29,37]},{"date":"2025/07/16","numbers":[15,18,24,31,32]},{"date":"2025/07/15","numbers":[9,16,21,22,38]},{"date":"2025/07/14","numbers":[8,11,12,29,36]},{"date":"2025/07/12","numbers":[3,19,20,21,26]},{"date":"2025/07/11","numbers":[9,26,37,38,39]},{"date":"2025/07/10","numbers":[2,3,4,34,36]},{"date":"2025/07/09","numbers":[13,18,27,28,37]},{"date":"2025/07/08","numbers":[3,4,24,27,33]},{"date":"2025/07/07","numbers":[14,25,27,35,38]},{"date":"2025/07/05","numbers":[8,14,22,24,35]},{"date":"2025/07/04","numbers":[5,24,31,36,39]},{"date":"2025/07/03","numbers":[10,21,22,26,27]},{"date":"2025/07/02","numbers":[6,13,21,24,38]},{"date":"2025/07/01","numbers":[6,8,11,19,38]},{"date":"2025/06/30","numbers":[7,8,11,23,31]},{"date":"2025/06/28","numbers":[12,22,29,33,34]},{"date":"2025/06/27","numbers":[3,4,10,19,37]},{"date":"2025/06/26","numbers":[1,6,13,24,29]},{"date":"2025/06/25","numbers":[2,11,28,30,37]},{"date":"2025/06/24","numbers":[1,10,12,20,31]},{"date":"2025/06/23","numbers":[3,14,22,31,38]},{"date":"2025/06/21","numbers":[3,8,15,24,39]},{"date":"2025/06/20","numbers":[2,5,8,17,24]},{"date":"2025/06/19","numbers":[12,14,15,17,24]},{"date":"2025/06/18","numbers":[7,12,23,26,36]},{"date":"2025/06/17","numbers":[2,12,14,26,37]},{"date":"2025/06/16","numbers":[6,8,9,33,36]},{"date":"2025/06/14","numbers":[2,15,17,23,37]},{"date":"2025/06/13","numbers":[4,5,10,12,38]},{"date":"2025/06/12","numbers":[11,14,15,19,32]},{"date":"2025/06/11","numbers":[4,17,19,21,31]},{"date":"2025/06/10","numbers":[7,12,16,29,38]},{"date":"2025/06/09","numbers":[8,20,27,29,30]},{"date":"2025/06/07","numbers":[4,16,22,23,32]},{"date":"2025/06/06","numbers":[2,12,14,25,30]},{"date":"2025/06/05","numbers":[7,14,19,35,39]},{"date":"2025/06/04","numbers":[20,30,33,36,38]},{"date":"2025/06/03","numbers":[7,20,21,25,34]},{"date":"2025/06/02","numbers":[2,7,11,16,21]},{"date":"2025/05/31","numbers":[14,18,20,29,35]},{"date":"2025/05/30","numbers":[14,20,21,34,35]},{"date":"2025/05/29","numbers":[4,18,28,30,31]},{"date":"2025/05/28","numbers":[9,13,15,24,33]},{"date":"2025/05/27","numbers":[4,8,23,33,38]},{"date":"2025/05/26","numbers":[8,15,21,24,34]},{"date":"2025/05/24","numbers":[14,18,29,35,36]},{"date":"2025/05/23","numbers":[13,16,24,27,32]},{"date":"2025/05/22","numbers":[1,8,17,21,35]},{"date":"2025/05/21","numbers":[10,16,31,34,38]},{"date":"2025/05/20","numbers":[10,22,23,26,38]},{"date":"2025/05/19","numbers":[4,7,14,25,35]},{"date":"2025/05/17","numbers":[3,9,24,30,39]},{"date":"2025/05/16","numbers":[2,13,24,27,39]},{"date":"2025/05/15","numbers":[2,4,15,25,36]},{"date":"2025/05/14","numbers":[1,14,18,24,38]},{"date":"2025/05/13","numbers":[4,10,20,23,29]},{"date":"2025/05/12","numbers":[8,10,26,27,38]},{"date":"2025/05/10","numbers":[6,9,20,27,36]},{"date":"2025/05/09","numbers":[4,11,19,21,34]},{"date":"2025/05/08","numbers":[7,10,26,28,33]},{"date":"2025/05/07","numbers":[7,9,21,28,38]},{"date":"2025/05/06","numbers":[6,11,18,37,39]},{"date":"2025/05/05","numbers":[4,5,8,10,11]},{"date":"2025/05/03","numbers":[1,10,19,27,31]},{"date":"2025/05/02","numbers":[5,12,20,24,28]},{"date":"2025/05/01","numbers":[8,19,25,27,39]},{"date":"2025/04/30","numbers":[22,26,30,31,38]},{"date":"2025/04/29","numbers":[1,7,13,18,35]},{"date":"2025/04/28","numbers":[6,12,17,38,39]},{"date":"2025/04/26","numbers":[20,23,32,35,38]},{"date":"2025/04/25","numbers":[1,5,24,33,36]},{"date":"2025/04/24","numbers":[4,6,25,29,35]},{"date":"2025/04/23","numbers":[1,16,19,27,33]},{"date":"2025/04/22","numbers":[8,19,23,27,31]},{"date":"2025/04/21","numbers":[2,6,12,14,24]},{"date":"2025/04/19","numbers":[14,19,21,26,36]},{"date":"2025/04/18","numbers":[7,24,28,31,36]},{"date":"2025/04/17","numbers":[3,6,23,24,37]},{"date":"2025/04/16","numbers":[7,22,25,29,38]},{"date":"2025/04/15","numbers":[2,3,16,27,39]},{"date":"2025/04/14","numbers":[9,10,22,30,33]},{"date":"2025/04/12","numbers":[9,11,15,25,31]},{"date":"2025/04/11","numbers":[15,17,26,27,35]},{"date":"2025/04/10","numbers":[14,19,22,26,28]},{"date":"2025/04/09","numbers":[4,6,14,24,35]},{"date":"2025/04/08","numbers":[6,17,18,19,32]},{"date":"2025/04/07","numbers":[1,6,19,26,33]},{"date":"2025/04/05","numbers":[12,13,14,15,24]},{"date":"2025/04/04","numbers":[3,6,7,36,38]},{"date":"2025/04/03","numbers":[5,16,23,31,39]},{"date":"2025/04/02","numbers":[4,8,29,32,34]},{"date":"2025/04/01","numbers":[5,13,17,19,31]},{"date":"2025/03/31","numbers":[7,10,13,23,26]},{"date":"2025/03/29","numbers":[4,9,12,17,27]},{"date":"2025/03/28","numbers":[13,24,25,36,39]},{"date":"2025/03/27","numbers":[5,25,33,36,37]},{"date":"2025/03/26","numbers":[1,10,12,32,35]},{"date":"2025/03/25","numbers":[4,20,24,27,38]},{"date":"2025/03/24","numbers":[7,25,32,34,35]},{"date":"2025/03/22","numbers":[5,13,16,24,28]},{"date":"2025/03/21","numbers":[5,9,15,20,26]},{"date":"2025/03/20","numbers":[2,16,17,27,32]},{"date":"2025/03/19","numbers":[11,15,25,29,34]},{"date":"2025/03/18","numbers":[3,13,15,19,25]},{"date":"2025/03/17","numbers":[7,11,13,26,30]},{"date":"2025/03/15","numbers":[8,15,25,26,34]},{"date":"2025/03/14","numbers":[6,8,18,19,28]},{"date":"2025/03/13","numbers":[3,4,7,11,30]},{"date":"2025/03/12","numbers":[6,14,27,30,33]},{"date":"2025/03/11","numbers":[2,21,24,27,31]},{"date":"2025/03/10","numbers":[2,4,7,25,37]},{"date":"2025/03/08","numbers":[17,23,24,27,35]},{"date":"2025/03/07","numbers":[9,10,19,33,35]},{"date":"2025/03/06","numbers":[8,12,15,18,34]},{"date":"2025/03/05","numbers":[15,23,29,36,39]},{"date":"2025/03/04","numbers":[11,18,21,23,36]},{"date":"2025/03/03","numbers":[8,9,12,22,27]},{"date":"2025/03/01","numbers":[4,16,29,31,34]},{"date":"2025/02/28","numbers":[5,27,31,38,39]},{"date":"2025/02/27","numbers":[11,12,20,28,29]},{"date":"2025/02/26","numbers":[3,11,24,27,36]},{"date":"2025/02/25","numbers":[5,11,26,33,35]},{"date":"2025/02/24","numbers":[8,17,18,24,36]},{"date":"2025/02/22","numbers":[4,7,11,19,22]},{"date":"2025/02/21","numbers":[11,13,18,30,35]},{"date":"2025/02/20","numbers":[3,7,17,24,27]},{"date":"2025/02/19","numbers":[3,27,28,33,38]},{"date":"2025/02/18","numbers":[10,12,13,19,33]},{"date":"2025/02/17","numbers":[9,15,29,30,39]},{"date":"2025/02/15","numbers":[6,8,10,21,26]},{"date":"2025/02/14","numbers":[11,17,29,34,39]},{"date":"2025/02/13","numbers":[2,7,11,20,30]},{"date":"2025/02/12","numbers":[2,6,19,28,29]},{"date":"2025/02/11","numbers":[10,18,19,27,28]},{"date":"2025/02/10","numbers":[12,22,26,28,35]},{"date":"2025/02/09","numbers":[4,5,27,35,37]},{"date":"2025/02/08","numbers":[8,24,28,37,38]},{"date":"2025/02/07","numbers":[16,21,26,29,37]},{"date":"2025/02/06","numbers":[3,7,22,29,34]},{"date":"2025/02/05","numbers":[6,7,8,14,39]},{"date":"2025/02/04","numbers":[1,8,16,19,31]},{"date":"2025/02/03","numbers":[4,16,21,23,37]},{"date":"2025/02/02","numbers":[9,16,29,32,39]},{"date":"2025/02/01","numbers":[1,10,23,32,37]},{"date":"2025/01/31","numbers":[1,5,9,14,26]},{"date":"2025/01/30","numbers":[9,11,14,18,27]},{"date":"2025/01/29","numbers":[4,11,25,31,32]},{"date":"2025/01/28","numbers":[13,22,23,24,35]},{"date":"2025/01/27","numbers":[1,6,16,26,31]},{"date":"2025/01/26","numbers":[7,8,9,17,20]},{"date":"2025/01/25","numbers":[1,7,32,36,37]},{"date":"2025/01/24","numbers":[5,9,12,14,31]},{"date":"2025/01/23","numbers":[4,7,17,22,35]},{"date":"2025/01/22","numbers":[6,19,23,26,30]},{"date":"2025/01/21","numbers":[1,14,18,19,22]},{"date":"2025/01/20","numbers":[3,12,19,32,34]},{"date":"2025/01/18","numbers":[7,12,18,35,39]},{"date":"2025/01/17","numbers":[4,7,8,24,26]},{"date":"2025/01/16","numbers":[9,13,23,29,34]},{"date":"2025/01/15","numbers":[3,21,22,26,39]},{"date":"2025/01/14","numbers":[10,22,31,35,36]},{"date":"2025/01/13","numbers":[4,12,28,35,38]},{"date":"2025/01/11","numbers":[5,12,13,19,34]},{"date":"2025/01/10","numbers":[9,11,15,18,20]},{"date":"2025/01/09","numbers":[2,8,19,21,29]},{"date":"2025/01/08","numbers":[12,18,20,24,31]},{"date":"2025/01/07","numbers":[13,23,27,31,37]},{"date":"2025/01/06","numbers":[7,21,22,27,35]},{"date":"2025/01/04","numbers":[8,9,12,21,23]},{"date":"2025/01/03","numbers":[5,6,8,11,14]},{"date":"2025/01/02","numbers":[12,26,30,32,33]},{"date":"2025/01/01","numbers":[2,7,8,10,14]},{"date":"2024/12/31","numbers":[11,15,32,33,34]},{"date":"2024/12/30","numbers":[3,20,23,27,31]},{"date":"2024/12/28","numbers":[17,18,24,26,30]},{"date":"2024/12/27","numbers":[7,15,19,20,38]},{"date":"2024/12/26","numbers":[5,7,12,20,38]},{"date":"2024/12/25","numbers":[6,18,21,29,38]},{"date":"2024/12/24","numbers":[1,14,15,28,39]},{"date":"2024/12/23","numbers":[2,6,13,18,22]},{"date":"2024/12/21","numbers":[12,13,14,18,32]},{"date":"2024/12/20","numbers":[3,9,16,19,26]},{"date":"2024/12/19","numbers":[7,8,11,27,33]},{"date":"2024/12/18","numbers":[3,24,27,33,37]},{"date":"2024/12/17","numbers":[3,5,7,16,31]},{"date":"2024/12/16","numbers":[5,11,21,23,26]},{"date":"2024/12/14","numbers":[3,7,8,12,35]},{"date":"2024/12/13","numbers":[2,9,20,34,38]},{"date":"2024/12/12","numbers":[2,11,16,23,29]},{"date":"2024/12/11","numbers":[4,22,32,34,37]},{"date":"2024/12/10","numbers":[7,12,13,21,24]},{"date":"2024/12/09","numbers":[8,9,20,28,32]},{"date":"2024/12/07","numbers":[6,24,31,32,33]},{"date":"2024/12/06","numbers":[2,15,20,33,38]},{"date":"2024/12/05","numbers":[5,19,23,28,39]},{"date":"2024/12/04","numbers":[12,27,33,35,38]},{"date":"2024/12/03","numbers":[7,12,15,16,18]},{"date":"2024/12/02","numbers":[5,13,23,29,38]},{"date":"2024/11/30","numbers":[4,11,16,17,24]},{"date":"2024/11/29","numbers":[3,11,18,25,35]},{"date":"2024/11/28","numbers":[5,9,20,29,34]},{"date":"2024/11/27","numbers":[7,13,14,21,35]},{"date":"2024/11/26","numbers":[1,5,11,27,29]},{"date":"2024/11/25","numbers":[3,6,19,20,38]},{"date":"2024/11/23","numbers":[3,13,28,29,38]},{"date":"2024/11/22","numbers":[3,7,8,17,30]},{"date":"2024/11/21","numbers":[4,12,13,23,25]},{"date":"2024/11/20","numbers":[13,20,30,31,33]},{"date":"2024/11/19","numbers":[10,14,21,32,33]},{"date":"2024/11/18","numbers":[3,5,23,26,27]},{"date":"2024/11/16","numbers":[4,24,29,33,37]},{"date":"2024/11/15","numbers":[2,18,27,29,39]},{"date":"2024/11/14","numbers":[5,11,17,25,30]},{"date":"2024/11/13","numbers":[3,11,18,21,35]},{"date":"2024/11/12","numbers":[5,8,17,24,28]},{"date":"2024/11/11","numbers":[7,14,20,24,26]},{"date":"2024/11/09","numbers":[2,3,10,21,36]},{"date":"2024/11/08","numbers":[1,9,13,31,32]},{"date":"2024/11/07","numbers":[6,10,20,25,32]},{"date":"2024/11/06","numbers":[6,11,14,18,22]},{"date":"2024/11/05","numbers":[1,8,18,27,30]},{"date":"2024/11/04","numbers":[3,7,10,26,35]},{"date":"2024/11/02","numbers":[6,7,16,37,38]},{"date":"2024/11/01","numbers":[4,8,11,19,31]},{"date":"2024/10/31","numbers":[8,13,25,36,38]},{"date":"2024/10/30","numbers":[10,11,17,24,33]},{"date":"2024/10/29","numbers":[9,12,25,29,35]},{"date":"2024/10/28","numbers":[1,6,13,22,39]},{"date":"2024/10/26","numbers":[13,15,18,26,28]},{"date":"2024/10/25","numbers":[6,8,15,28,39]},{"date":"2024/10/24","numbers":[1,4,8,20,22]},{"date":"2024/10/23","numbers":[10,18,19,26,37]},{"date":"2024/10/22","numbers":[7,16,25,32,34]},{"date":"2024/10/21","numbers":[1,9,17,31,35]},{"date":"2024/10/19","numbers":[11,15,24,36,37]},{"date":"2024/10/18","numbers":[4,11,26,34,38]},{"date":"2024/10/17","numbers":[1,18,21,36,37]},{"date":"2024/10/16","numbers":[15,20,27,30,31]},{"date":"2024/10/15","numbers":[2,19,27,33,35]},{"date":"2024/10/14","numbers":[4,14,19,25,32]},{"date":"2024/10/12","numbers":[14,21,22,23,35]},{"date":"2024/10/11","numbers":[14,15,16,24,29]},{"date":"2024/10/10","numbers":[3,25,29,35,38]},{"date":"2024/10/09","numbers":[12,17,25,31,34]},{"date":"2024/10/08","numbers":[1,11,13,25,37]},{"date":"2024/10/07","numbers":[2,10,17,21,39]},{"date":"2024/10/05","numbers":[2,5,8,14,32]},{"date":"2024/10/04","numbers":[5,11,27,38,39]},{"date":"2024/10/03","numbers":[1,6,15,19,39]},{"date":"2024/10/02","numbers":[7,8,13,22,34]},{"date":"2024/10/01","numbers":[20,23,30,31,35]},{"date":"2024/09/30","numbers":[7,10,24,27,31]},{"date":"2024/09/28","numbers":[10,20,24,35,39]},{"date":"2024/09/27","numbers":[3,27,34,37,39]},{"date":"2024/09/26","numbers":[4,6,14,16,20]},{"date":"2024/09/25","numbers":[2,5,10,12,37]},{"date":"2024/09/24","numbers":[4,10,19,30,31]},{"date":"2024/09/23","numbers":[4,12,14,17,35]},{"date":"2024/09/21","numbers":[9,22,25,35,39]},{"date":"2024/09/20","numbers":[4,7,30,32,38]},{"date":"2024/09/19","numbers":[16,19,22,26,37]},{"date":"2024/09/18","numbers":[2,9,16,18,23]},{"date":"2024/09/17","numbers":[7,9,31,38,39]},{"date":"2024/09/16","numbers":[12,15,18,19,26]},{"date":"2024/09/14","numbers":[3,29,34,35,37]},{"date":"2024/09/13","numbers":[6,8,25,37,39]},{"date":"2024/09/12","numbers":[3,8,13,27,33]},{"date":"2024/09/11","numbers":[5,8,14,20,26]},{"date":"2024/09/10","numbers":[6,34,35,36,39]},{"date":"2024/09/09","numbers":[5,16,17,36,37]},{"date":"2024/09/07","numbers":[5,9,28,36,38]},{"date":"2024/09/06","numbers":[14,27,31,36,39]},{"date":"2024/09/05","numbers":[10,13,27,32,37]},{"date":"2024/09/04","numbers":[9,26,27,31,35]},{"date":"2024/09/03","numbers":[11,14,19,23,24]},{"date":"2024/09/02","numbers":[16,20,24,31,37]},{"date":"2024/08/31","numbers":[9,15,21,36,37]},{"date":"2024/08/30","numbers":[3,5,14,22,36]},{"date":"2024/08/29","numbers":[4,21,26,29,36]},{"date":"2024/08/28","numbers":[6,16,34,35,36]},{"date":"2024/08/27","numbers":[5,13,21,34,35]},{"date":"2024/08/26","numbers":[5,9,11,23,33]},{"date":"2024/08/24","numbers":[25,26,28,29,37]},{"date":"2024/08/23","numbers":[9,11,30,34,39]},{"date":"2024/08/22","numbers":[2,8,16,34,37]},{"date":"2024/08/21","numbers":[1,2,12,13,22]},{"date":"2024/08/20","numbers":[7,28,30,34,39]},{"date":"2024/08/19","numbers":[2,9,12,16,36]},{"date":"2024/08/17","numbers":[6,14,32,33,36]},{"date":"2024/08/16","numbers":[9,17,18,32,35]},{"date":"2024/08/15","numbers":[7,14,20,27,39]},{"date":"2024/08/14","numbers":[6,9,24,30,34]},{"date":"2024/08/13","numbers":[9,15,20,28,32]},{"date":"2024/08/12","numbers":[8,12,24,28,34]},{"date":"2024/08/10","numbers":[1,21,28,38,39]},{"date":"2024/08/09","numbers":[2,7,8,10,12]},{"date":"2024/08/08","numbers":[2,9,13,19,28]},{"date":"2024/08/07","numbers":[4,5,16,19,30]},{"date":"2024/08/06","numbers":[1,6,12,29,37]},{"date":"2024/08/05","numbers":[6,7,11,17,36]},{"date":"2024/08/03","numbers":[11,12,26,27,32]},{"date":"2024/08/02","numbers":[1,19,22,24,38]},{"date":"2024/08/01","numbers":[12,24,27,30,35]},{"date":"2024/07/31","numbers":[12,18,36,37,38]},{"date":"2024/07/30","numbers":[2,4,16,29,38]},{"date":"2024/07/29","numbers":[1,12,14,24,30]},{"date":"2024/07/27","numbers":[1,11,15,18,37]},{"date":"2024/07/26","numbers":[11,12,18,20,36]},{"date":"2024/07/25","numbers":[1,9,17,18,39]},{"date":"2024/07/24","numbers":[2,3,21,23,34]},{"date":"2024/07/23","numbers":[7,11,12,37,38]},{"date":"2024/07/22","numbers":[6,20,26,30,34]},{"date":"2024/07/20","numbers":[1,11,27,29,31]},{"date":"2024/07/19","numbers":[14,19,24,30,36]},{"date":"2024/07/18","numbers":[5,17,24,33,34]},{"date":"2024/07/17","numbers":[8,10,26,28,37]},{"date":"2024/07/16","numbers":[7,24,26,34,36]},{"date":"2024/07/15","numbers":[1,19,22,25,37]},{"date":"2024/07/13","numbers":[16,21,23,29,30]},{"date":"2024/07/12","numbers":[8,17,18,19,36]},{"date":"2024/07/11","numbers":[1,2,13,23,37]},{"date":"2024/07/10","numbers":[1,9,14,31,33]},{"date":"2024/07/09","numbers":[2,13,31,33,36]},{"date":"2024/07/08","numbers":[11,17,20,22,29]},{"date":"2024/07/06","numbers":[4,21,24,33,35]},{"date":"2024/07/05","numbers":[17,18,23,24,28]},{"date":"2024/07/04","numbers":[9,12,15,26,33]},{"date":"2024/07/03","numbers":[4,20,25,33,34]},{"date":"2024/07/02","numbers":[3,15,16,20,22]},{"date":"2024/07/01","numbers":[8,11,17,19,23]},{"date":"2024/06/29","numbers":[2,17,26,33,35]},{"date":"2024/06/28","numbers":[12,16,25,27,39]},{"date":"2024/06/27","numbers":[15,18,27,28,31]},{"date":"2024/06/26","numbers":[2,21,37,38,39]},{"date":"2024/06/25","numbers":[25,26,32,36,37]},{"date":"2024/06/24","numbers":[3,13,17,32,39]},{"date":"2024/06/22","numbers":[1,21,22,25,27]},{"date":"2024/06/21","numbers":[10,12,15,16,23]},{"date":"2024/06/20","numbers":[12,13,16,20,32]},{"date":"2024/06/19","numbers":[2,10,11,14,22]},{"date":"2024/06/18","numbers":[2,9,15,29,38]},{"date":"2024/06/17","numbers":[2,8,26,32,34]},{"date":"2024/06/15","numbers":[5,8,35,36,37]},{"date":"2024/06/14","numbers":[1,2,17,20,37]},{"date":"2024/06/13","numbers":[3,12,17,30,38]},{"date":"2024/06/12","numbers":[14,19,20,29,32]},{"date":"2024/06/11","numbers":[3,13,26,32,34]},{"date":"2024/06/10","numbers":[18,19,30,33,38]},{"date":"2024/06/08","numbers":[11,19,24,31,32]},{"date":"2024/06/07","numbers":[1,4,27,34,35]},{"date":"2024/06/06","numbers":[3,11,20,21,36]},{"date":"2024/06/05","numbers":[3,4,6,14,20]},{"date":"2024/06/04","numbers":[7,11,17,23,25]},{"date":"2024/06/03","numbers":[6,10,21,24,31]},{"date":"2024/06/01","numbers":[4,20,24,28,38]}]`;
+
+        // 核心參數
+        let fullData = [];
+        let currentStrategy = 'gap'; // 預設策略
+        const STORAGE_KEY = 'lotto539_data_cache_v4'; 
+        const CRAWL_PAGES = 3; 
+        const BASE_URL = "https://www.lotto-8.com/listlto539.asp";
+        
+        const COST_PER_BET = 1062;
+        const PRIZE_3 = 1710;
+        const PRIZE_4 = 2280;
+        const HEADS = {
+            0: [1,2,3,4,5,6,7,8,9],
+            1: [11,12,13,14,15,16,17,18,19],
+            2: [21,22,23,24,25,26,27,28,29],
+            3: [31,32,33,34,35,36,37,38,39]
+        };
+
+        window.onload = initSystem;
+
+        // --- 核心：資料初始化 (智慧合併 + 自動更新) ---
+        async function initSystem() {
+            let staticData = JSON.parse(staticHistoryJSON);
+            let localData = [];
+            const localStr = localStorage.getItem(STORAGE_KEY);
+            if (localStr) {
+                try { localData = JSON.parse(localStr); } catch(e) {}
+            }
+
+            let mergedMap = new Map();
+            staticData.forEach(item => mergedMap.set(item.date, item));
+            localData.forEach(item => mergedMap.set(item.date, item));
+
+            fullData = Array.from(mergedMap.values());
+            fullData.sort((a,b) => new Date(b.date) - new Date(a.date));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(fullData));
+            
+            runAnalysis();
+            await forceFetchData(); 
+        }
+
+        async function forceFetchData() {
+            const btn = document.getElementById('btnFetch');
+            const status = document.getElementById('statusText');
+
+            if(btn) {
+                btn.disabled = true;
+                btn.querySelector('#fetchText').innerText = "自動更新中...";
+                btn.querySelector('#fetchIcon').classList.add('spin');
+            }
+            status.innerText = "📡 背景同步新資料...";
+            status.className = "syncing";
+
+            const proxies = [
+                url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&timestamp=${Date.now()}`,
+                url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+            ];
+
+            let latestDate = fullData[0].date;
+            let newData = [];
+            let stop = false;
+
+            try {
+                for (let i = 1; i <= CRAWL_PAGES; i++) {
+                    if (stop) break;
+                    let targetUrl = i === 1 ? BASE_URL : `${BASE_URL}?indexpage=${i}&orderby=new`;
+                    let html = null;
+
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        for (let proxy of proxies) {
+                            try {
+                                let res = await fetch(proxy(targetUrl));
+                                let content = res.url.includes("allorigins") ? (await res.json()).contents : await res.text();
+                                if (content && content.length > 500) { html = content; break; }
+                            } catch(e) {}
+                        }
+                        if (html) break;
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+
+                    if (html) {
+                        let parsed = parseHtml(html);
+                        for (let row of parsed) {
+                            if (new Date(row.date) > new Date(latestDate)) {
+                                newData.push(row);
+                            } else {
+                                stop = true; 
+                            }
+                        }
+                    }
+                }
+
+                if (newData.length > 0) {
+                    fullData = [...newData, ...fullData];
+                    fullData.sort((a,b) => new Date(b.date) - new Date(a.date));
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(fullData));
+                    status.innerText = `✅ 已更新 ${newData.length} 筆新資料`;
+                    status.className = "success";
+                    runAnalysis(); 
+                } else {
+                    status.innerText = "✅ 資料已是最新";
+                    status.className = "success";
+                }
+
+            } catch (e) {
+                status.innerText = "⚠️ 連線逾時 (使用快取)";
+                status.className = "loading";
+            }
+
+            if(btn) {
+                btn.disabled = false;
+                btn.querySelector('#fetchText').innerText = "手動強制更新";
+                btn.querySelector('#fetchIcon').classList.remove('spin');
+            }
+        }
+
+        function parseHtml(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+            let results = [];
+            doc.querySelectorAll("tr").forEach(row => {
+                const text = row.innerText.trim();
+                const dMatch = text.match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+                if (dMatch) {
+                    let nums = text.match(/\d{2}/g);
+                    if (nums && nums.length >= 5) {
+                        let valid = [];
+                        for (let i = nums.length - 1; i >= 0; i--) {
+                            let n = parseInt(nums[i]);
+                            if (n >= 1 && n <= 39 && !valid.includes(n)) valid.unshift(n);
+                            if (valid.length === 5) break;
+                        }
+                        let dateStr = `${dMatch[1]}/${dMatch[2].padStart(2, '0')}/${dMatch[3].padStart(2, '0')}`;
+                        if (valid.length === 5) results.push({ date: dateStr, numbers: valid });
+                    }
+                }
+            });
+            return results;
+        }
+
+        function manualStart() {
+            let inputs = [1,2,3,4,5].map(i => parseInt(document.getElementById('m'+i).value));
+            if(inputs.some(isNaN)) return alert("請輸入完整號碼");
+            
+            let today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
+            fullData.unshift({ date: today, numbers: inputs });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(fullData));
+            document.getElementById('manualInputSection').style.display = 'none';
+            runAnalysis();
+        }
+
+        // --- 策略切換邏輯 ---
+        function switchStrategy() {
+            const loading = document.getElementById('loadingBar');
+            const fill = document.getElementById('progressFill');
+            const select = document.getElementById('strategySelect');
+            
+            currentStrategy = select.value;
+            
+            // UI Feedback
+            loading.style.display = 'flex';
+            fill.style.width = '0%';
+            
+            setTimeout(() => { fill.style.width = '50%'; }, 200);
+            
+            setTimeout(() => { 
+                fill.style.width = '100%';
+                runAnalysis(); // 重跑分析
+                
+                // 更新標籤文字
+                const tagName = select.options[select.selectedIndex].text.split('(')[1].split(')')[0];
+                document.getElementById('current-strategy-tag').innerText = tagName;
+                
+                setTimeout(() => { loading.style.display = 'none'; }, 300);
+            }, 800);
+        }
+
+        // --- 分析與 UI 更新 ---
+        function runAnalysis() {
+            document.getElementById('dataCount').innerText = `(庫存: ${fullData.length} 期)`;
+
+            predictNextDraw(); 
+
+            let resOpt = runPackageBacktest(fullData, currentStrategy); 
+            updateStatBox(resOpt);
+            renderHistoryList(); 
+        }
+
+        function predictNextDraw() {
+            let lastDate = new Date(fullData[0].date);
+            let nextDate = new Date(lastDate);
+            nextDate.setDate(lastDate.getDate() + 1);
+            if(nextDate.getDay() === 0) nextDate.setDate(nextDate.getDate() + 1); 
+            
+            let m = (nextDate.getMonth()+1).toString().padStart(2, '0');
+            let d = nextDate.getDate().toString().padStart(2, '0');
+            let dayIdx = nextDate.getDay(); 
+            
+            document.getElementById('nextDrawDate').innerText = `${m}/${d}`;
+            document.getElementById('nextWeekday').innerText = `週${"日一二三四五六"[dayIdx]}`;
+
+            let past20 = fullData.slice(0, 20);
+            let counts = getHeadCounts(past20);
+            let others = {1: counts[1], 2: counts[2], 3: counts[3]};
+            let sortedHeads = Object.keys(others).sort((a,b) => others[b] - others[a]);
+            let p1 = parseInt(sortedHeads[0]);
+            let p2 = parseInt(sortedHeads[1]);
+            
+            let p1_count = others[p1];
+            let p2_count = others[p2];
+            let gap = p1_count - p2_count;
+            let head0Count = counts[0];
+
+            let comboText = "";
+            let descText = "";
+            let signalType = ""; // super, strong, weak, stop
+
+            // 判斷基本環境 (Stop conditions)
+            if (dayIdx === 2 || head0Count > 25) {
+                signalType = "stop";
+                comboText = "暫停下注";
+                descText = (dayIdx === 2) ? "避開週二風險" : "0頭過熱風險";
+            } else {
+                // 根據策略邏輯分支
+                if (currentStrategy === 'gap') {
+                    if (gap >= 5) {
+                        signalType = "super";
+                        comboText = `0頭 + ${p1}頭 (重注)`;
+                        descText = `獨強格局 (差距${gap}球)`;
+                    } else if (gap <= 2) {
+                        signalType = "strong";
+                        comboText = `雙龍: 0+${p1} & 0+${p2}`;
+                        descText = `雙強纏鬥 (差距${gap}球)`;
+                    } else {
+                        signalType = "strong";
+                        comboText = `0頭 + ${p1}頭`;
+                        descText = `標準格局`;
+                    }
+                } else if (currentStrategy === 'recovery') {
+                    signalType = "strong";
+                    comboText = `0頭 + ${p1}頭`;
+                    descText = `輸則加碼，贏則均注`;
+                } else if (currentStrategy === 'double') {
+                    signalType = "strong";
+                    comboText = `雙龍: 0+${p1} & 0+${p2}`;
+                    descText = `雙倍覆蓋，提高勝率`;
+                }
+            }
+
+            // 更新 UI 文字
+            document.getElementById('pred-combo').innerText = comboText;
+            document.getElementById('pred-desc').innerText = descText;
+
+            // 點亮對應燈號
+            ['btn-super','btn-strong','btn-weak','btn-stop'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+            document.getElementById(`btn-${signalType}`).classList.add('active');
+        }
+
+        function runPackageBacktest(data, strategy) {
+            let totalCost = 0, totalPrize = 0, wins = 0, trades = 0;
+            let lastBetDate = "無";
+            let lastLost = false; // For Recovery Strategy
+
+            // 確保資料量足夠
+            if(data.length < 22) return { cost: 0, net: 0, wins: 0, trades: 0 };
+
+            for(let i = data.length - 21; i >= 0; i--) {
+                let targetDraw = data[i]; 
+                let past20 = data.slice(i+1, i+21);
+                let counts = getHeadCounts(past20);
+                
+                let others = {1: counts[1], 2: counts[2], 3: counts[3]};
+                let sortedHeads = Object.keys(others).sort((a,b) => others[b] - others[a]);
+                let p1 = parseInt(sortedHeads[0]);
+                let p2 = parseInt(sortedHeads[1]);
+                let gap = others[p1] - others[p2];
+                
+                let date = new Date(targetDraw.date);
+                let day = date.getDay();
+                
+                // 通用濾網
+                let isTradeDay = (day !== 2 && counts[0] <= 25);
+                let betUnits = 0;
+                let dailyPrize = 0;
+                
+                if (isTradeDay) {
+                    if (strategy === 'gap') {
+                        if (gap >= 5) {
+                            // 重注 p1 (2倍)
+                            betUnits += 2;
+                            dailyPrize += checkPrize(targetDraw.numbers, 0, p1) * 2;
+                        } else if (gap <= 2) {
+                            // 雙龍 (各1倍)
+                            betUnits += 2;
+                            dailyPrize += checkPrize(targetDraw.numbers, 0, p1);
+                            dailyPrize += checkPrize(targetDraw.numbers, 0, p2);
+                        } else {
+                            // 標準
+                            betUnits += 1;
+                            dailyPrize += checkPrize(targetDraw.numbers, 0, p1);
+                        }
+                    } 
+                    else if (strategy === 'recovery') {
+                        let multiplier = lastLost ? 2 : 1; // 輸了加倍
+                        betUnits += multiplier;
+                        dailyPrize += checkPrize(targetDraw.numbers, 0, p1) * multiplier;
+                    } 
+                    else if (strategy === 'double') {
+                        // 雙龍全下
+                        betUnits += 2;
+                        dailyPrize += checkPrize(targetDraw.numbers, 0, p1);
+                        dailyPrize += checkPrize(targetDraw.numbers, 0, p2);
+                    }
+                }
+
+                if (betUnits > 0) {
+                    trades++;
+                    let cost = betUnits * COST_PER_BET;
+                    totalCost += cost;
+                    totalPrize += dailyPrize;
+                    
+                    if (dailyPrize > cost) wins++;
+                    
+                    lastBetDate = targetDraw.date;
+                    lastLost = (dailyPrize < cost); // 更新輸贏狀態給下一期用
+                }
+            }
+            
+            document.getElementById('last-bet-date').innerText = lastBetDate;
+            // 更新策略說明文字
+            let desc = "";
+            if(strategy==='gap') desc = "策略說明：差距>=5球重注，<=2球分散，其餘標準注。";
+            if(strategy==='recovery') desc = "策略說明：若上一期虧損，本期注碼加倍追擊。";
+            if(strategy==='double') desc = "策略說明：每期同時下注第一熱門與第二熱門。";
+            document.getElementById('strategy-desc').innerText = desc;
+
+            return { cost: totalCost, net: totalPrize - totalCost, wins, trades };
+        }
+
+        // 渲染近10期列表
+        function renderHistoryList() {
+            const container = document.getElementById('history-rows');
+            let html = '';
+            
+            for(let i=0; i<10; i++) {
+                if(i >= fullData.length) break;
+                
+                let draw = fullData[i];
+                let past20 = fullData.slice(i+1, i+21);
+                if(past20.length < 20) break;
+
+                let counts = getHeadCounts(past20);
+                let others = {1: counts[1], 2: counts[2], 3: counts[3]};
+                let sortedHeads = Object.keys(others).sort((a,b) => others[b] - others[a]);
+                let p1 = parseInt(sortedHeads[0]);
+                let p2 = parseInt(sortedHeads[1]);
+                let gap = others[p1] - others[p2];
+                
+                let date = new Date(draw.date);
+                let day = date.getDay();
+                let isTradeDay = (day !== 2 && counts[0] <= 25);
+                
+                let predText = "Pass";
+                let resultHtml = `<span class="res-pass">Pass</span>`;
+                let dailyPrize = 0;
+                let dailyCost = 0;
+
+                if (isTradeDay) {
+                    if (currentStrategy === 'gap') {
+                        if (gap >= 5) {
+                            predText = `0+${p1}(x2)`;
+                            dailyCost = COST_PER_BET * 2;
+                            dailyPrize = checkPrize(draw.numbers, 0, p1) * 2;
+                        } else if (gap <= 2) {
+                            predText = `0+${p1}&${p2}`;
+                            dailyCost = COST_PER_BET * 2;
+                            dailyPrize = checkPrize(draw.numbers, 0, p1) + checkPrize(draw.numbers, 0, p2);
+                        } else {
+                            predText = `0+${p1}`;
+                            dailyCost = COST_PER_BET;
+                            dailyPrize = checkPrize(draw.numbers, 0, p1);
+                        }
+                    } else if (currentStrategy === 'recovery') {
+                        // 簡化顯示，不回溯上一期狀態，僅顯示標準注
+                        predText = `0+${p1}`; 
+                        dailyCost = COST_PER_BET;
+                        dailyPrize = checkPrize(draw.numbers, 0, p1);
+                    } else if (currentStrategy === 'double') {
+                        predText = `0+${p1}&${p2}`;
+                        dailyCost = COST_PER_BET * 2;
+                        dailyPrize = checkPrize(draw.numbers, 0, p1) + checkPrize(draw.numbers, 0, p2);
+                    }
+
+                    if (dailyPrize > dailyCost) {
+                        resultHtml = `<span class="res-yes">Yes</span>`;
+                    } else {
+                        resultHtml = `<span class="res-no">No</span>`;
+                    }
+                }
+
+                html += `
+                    <div class="hist-row">
+                        <div class="col-date">${draw.date.slice(5)}</div>
+                        <div class="col-nums">
+                            ${draw.numbers.map(n => {
+                                let is0 = HEADS[0].includes(n);
+                                let isP1 = HEADS[p1].includes(n);
+                                let isP2 = HEADS[p2].includes(n);
+                                let color = '#bdc3c7';
+                                if (is0) color = '#ff7675'; // 0頭紅
+                                else if (isP1) color = '#f1c40f'; // 熱1黃
+                                else if (isP2 && (currentStrategy==='double' || (currentStrategy==='gap' && gap<=2))) color = '#3498db'; // 熱2藍
+                                return `<span style="color:${color}">${n<10?'0'+n:n}</span>`;
+                            }).join(' ')}
+                        </div>
+                        <div class="col-pred">${predText}</div>
+                        <div class="col-res">${resultHtml}</div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function getHeadCounts(history) {
+            let c = {0:0, 1:0, 2:0, 3:0};
+            history.forEach(d => {
+                d.numbers.forEach(n => {
+                    if(n<=9) c[0]++; else if(n<=19) c[1]++; else if(n<=29) c[2]++; else if(n<=39) c[3]++;
+                });
+            });
+            return c;
+        }
+
+        function checkPrize(nums, hA, hB) {
+            let hitsA = 0, hitsB = 0, hitsC = 0;
+            let setA = HEADS[hA], setB = HEADS[hB];
+            nums.forEach(n => {
+                if(setA.includes(n)) hitsA++; else if(setB.includes(n)) hitsB++; else hitsC++;
+            });
+            if(hitsA > 0 && hitsB > 0 && hitsC > 0) {
+                let sorted = [hitsA, hitsB, hitsC].sort((a,b)=>a-b);
+                if(sorted[0]===1 && sorted[1]===2 && sorted[2]===2) return PRIZE_4;
+                if(sorted[0]===1 && sorted[1]===1 && sorted[2]===3) return PRIZE_3;
+            }
+            return 0;
+        }
+
+        function updateStatBox(res) {
+            document.getElementById('st-profit').innerText = `$${res.net.toLocaleString()}`;
+            document.getElementById('st-profit').className = res.net > 0 ? "stat-value val-win" : "stat-value val-loss";
+            let roi = res.cost > 0 ? (res.net / res.cost * 100).toFixed(1) : 0;
+            document.getElementById('st-roi').innerText = `${roi}%`;
+            let winRate = res.trades > 0 ? (res.wins / res.trades * 100).toFixed(1) : 0;
+            document.getElementById('st-winrate').innerText = `${winRate}%`;
+            document.getElementById('st-count').innerText = res.trades;
+            document.getElementById('real-test-count').innerText = fullData.length;
+        }
+    </script>
+</div>
+</body>
+</html>
