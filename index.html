@@ -3,1617 +3,742 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>539 智能操盤系統-測試版本 </title>
+    <title>539 智能操盤系統 (連勝追擊版)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         :root {
-            /* 現代化配色系統 */
-            --bg-gradient: radial-gradient(circle at top left, #232526, #414345);
-            --bg-dark: #0f172a;
-            --glass-bg: rgba(30, 41, 59, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --glass-blur: blur(12px);
-            
-            --primary: #6366f1; /* Indigo */
-            --primary-glow: rgba(99, 102, 241, 0.5);
-            --secondary: #ec4899; /* Pink */
-            
-            --success: #10b981; /* Emerald */
-            --danger: #ef4444; /* Red */
-            --warning: #f59e0b; /* Amber */
-            
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            
-            --card-radius: 16px;
-            --btn-radius: 8px;
+            --bg-dark: #0f172a; --glass-bg: rgba(30, 41, 59, 0.7); --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1; --secondary: #ec4899; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+            --text-main: #f8fafc; --text-muted: #94a3b8; --card-radius: 16px;
         }
-
         body {
-            font-family: 'Inter', 'Noto Sans TC', sans-serif;
-            background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            box-sizing: border-box;
+            font-family: 'Inter', 'Noto Sans TC', sans-serif; background-color: var(--bg-dark);
+            background-image: radial-gradient(at 0% 0%, rgba(99,102,241,0.15), transparent 50%), radial-gradient(at 100% 0%, rgba(236,72,153,0.15), transparent 50%);
+            color: var(--text-main); margin: 0; padding: 20px; box-sizing: border-box;
         }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            gap: 24px;
-        }
-
-        /* --- Header --- */
-        header {
-            text-align: center;
-            padding: 24px;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--card-radius);
-            backdrop-filter: var(--glass-blur);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-            position: relative;
-            overflow: hidden;
-        }
+        .container { max-width: 1200px; margin: 0 auto; display: grid; gap: 24px; }
         
-        header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-        }
+        /* Components */
+        header { padding: 24px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--card-radius); backdrop-filter: blur(12px); text-align: center; position: relative; overflow: hidden; }
+        header::after { content:''; position: absolute; bottom:0; left:0; width:100%; height:2px; background: linear-gradient(90deg, var(--primary), var(--secondary)); }
+        h1 { margin: 0; background: linear-gradient(135deg, #fff, #cbd5e1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 28px; }
 
-        h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: 1px;
-        }
+        .mode-switcher { display: flex; gap: 12px; padding: 6px; background: rgba(15,23,42,0.6); border-radius: 12px; border: 1px solid var(--glass-border); }
+        .mode-btn { flex: 1; padding: 12px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: 8px; font-weight: 600; transition: 0.3s; }
+        .mode-btn.active { color: white; background: rgba(255,255,255,0.1); }
+        body.mode-a #btnModeA.active { border-bottom: 2px solid var(--primary); }
+        body.mode-b #btnModeB.active { border-bottom: 2px solid var(--secondary); }
 
-        /* --- Mode Switcher (Tabs) --- */
-        .mode-switcher {
-            display: flex;
-            gap: 12px;
-            padding: 6px;
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 12px;
-            justify-content: center;
-            border: 1px solid var(--glass-border);
-        }
+        .status-container { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; position: relative; overflow: hidden; }
+        .status-bar-content { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; }
+        .status-progress-bar { height: 3px; width: 100%; background: rgba(255,255,255,0.05); position: absolute; bottom: 0; }
+        .status-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--secondary)); transition: width 0.3s; }
+        .indeterminate { width: 30%; animation: loading-bar 1.5s infinite linear; }
+        @keyframes loading-bar { 0% { left: -30%; } 100% { left: 100%; } }
 
-        .mode-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: var(--btn-radius);
-            cursor: pointer;
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-muted);
-            background: transparent;
-            transition: all 0.3s ease;
-        }
-
-        .mode-btn.active {
-            color: white;
-            background: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            text-shadow: 0 0 10px rgba(255,255,255,0.3);
-        }
-        
-        .mode-btn:hover:not(.active) {
-            color: white;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        body.mode-a .mode-btn.active#btnModeA { border-bottom: 2px solid var(--primary); }
-        body.mode-b .mode-btn.active#btnModeB { border-bottom: 2px solid var(--secondary); }
-
-        /* --- Status Bar & Tools --- */
-        .status-container {
-            background: var(--glass-bg);
-            border-radius: var(--btn-radius);
-            border: 1px solid var(--glass-border);
-            overflow: hidden; /* For progress bar */
-            position: relative;
-        }
-
-        .status-bar-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 20px;
-            flex-wrap: nowrap; /* Prevent wrapping */
-            gap: 15px;
-        }
-
-        .status-text-group {
-            display: flex;
-            flex-direction: column; /* Stack vertically */
-            gap: 4px;
-            min-width: 0; /* Allow shrinking */
-        }
-
-        /* Status Message (Loading...) */
-        #statusText {
-            font-size: 14px;
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .loading { color: var(--gold); }
-        .success { color: var(--success); }
-        .syncing { color: #38bdf8; }
-
-        /* Data Info (Date & Count) */
-        .data-info-block {
-            display: flex;
-            flex-direction: column;
-            font-size: 12px;
-            color: var(--text-muted);
-            line-height: 1.4;
-        }
-        
-        .data-range-date { color: #cbd5e1; font-family: monospace; }
-        .data-count-highlight { color: var(--primary); font-weight: 700; }
-
-        .btn-reset {
-            background: linear-gradient(135deg, #ef4444, #b91c1c);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-            white-space: nowrap; /* Keep button text single line */
-            flex-shrink: 0; /* Prevent button from shrinking */
-        }
-        .btn-reset:hover { transform: translateY(-1px); box-shadow: 0 6px 15px rgba(239, 68, 68, 0.4); }
-        .btn-reset:active { transform: translateY(1px); }
-
-        /* --- Dynamic Linear Progress Bar --- */
-        .status-progress-bar {
-            height: 3px;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            position: absolute;
-            bottom: 0;
-            left: 0;
-        }
-        .status-progress-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            transition: width 0.3s ease;
-            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
-        }
-        /* Indeterminate Animation state */
-        .status-progress-fill.indeterminate {
-            width: 30%;
-            animation: loading-bar 1.5s infinite linear;
-        }
-        
-        @keyframes loading-bar {
-            0% { left: -30%; }
-            100% { left: 100%; }
-        }
-
-        /* --- Dashboard --- */
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 24px;
-        }
+        .dashboard { display: grid; grid-template-columns: 1fr; gap: 24px; }
         @media(min-width: 992px) { .dashboard { grid-template-columns: 1fr 1fr; } }
-
-        /* --- Cards --- */
-        .card {
-            background: var(--glass-bg);
-            padding: 24px;
-            border-radius: var(--card-radius);
-            border: 1px solid var(--glass-border);
-            backdrop-filter: blur(16px);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.3s ease;
-        }
-        .card h2 {
-            margin-top: 0;
-            font-size: 18px;
-            color: var(--text-main);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .card-tag {
-            font-size: 11px;
-            background: linear-gradient(90deg, var(--primary), #818cf8);
-            padding: 4px 10px;
-            border-radius: 20px;
-            color: white;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
-        }
-
-        /* --- Controls --- */
-        .strategy-control-panel {
-            background: rgba(0, 0, 0, 0.2);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .control-row { display: flex; gap: 12px; align-items: stretch; }
-
-        .select-wrapper {
-            flex-grow: 2;
-            position: relative;
-        }
         
-        .strategy-select {
-            width: 100%;
-            appearance: none;
-            -webkit-appearance: none;
-            background: #1e293b;
-            border: 1px solid #475569;
-            color: white;
-            padding: 12px 16px;
-            padding-right: 40px;
-            border-radius: 8px;
-            font-size: 15px;
-            outline: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Noto Sans TC', sans-serif;
-        }
-        .strategy-select:hover { border-color: var(--primary); background: #334155; }
-        .strategy-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); }
+        .card { background: var(--glass-bg); padding: 24px; border-radius: var(--card-radius); border: 1px solid var(--glass-border); backdrop-filter: blur(16px); position: relative; }
+        .card h2 { margin: 0 0 20px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; display: flex; justify-content: space-between; }
+        .card-tag { font-size: 11px; padding: 4px 10px; border-radius: 20px; background: linear-gradient(90deg, var(--primary), #818cf8); }
 
-        .select-arrow {
-            position: absolute; top: 50%; right: 15px; transform: translateY(-50%);
-            width: 12px; height: 12px; pointer-events: none;
-            border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #94a3b8;
-        }
+        /* Controls */
+        .strategy-control-panel { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+        .control-row { display: flex; gap: 12px; }
+        .strategy-select, .unit-input { background: #1e293b; border: 1px solid #475569; color: white; border-radius: 8px; padding: 10px; }
+        .strategy-select { width: 100%; padding: 12px; outline: none; }
+        .unit-input-group { display: flex; align-items: center; gap: 10px; background: #1e293b; padding: 4px 12px; border-radius: 8px; border: 1px solid #475569; }
+        .unit-input { width: 50px; border: none; text-align: center; font-weight: 700; color: var(--warning); background: transparent; outline: none; }
+        .btn-switch, .btn-fetch, .btn-reset { border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: transform 0.2s; }
+        .btn-switch { background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 0 20px; white-space: nowrap; }
+        .btn-reset { background: linear-gradient(135deg, #ef4444, #b91c1c); padding: 8px 16px; font-size: 13px; }
+        .btn-fetch { background: linear-gradient(135deg, var(--primary), #4f46e5); padding: 14px; width: 100%; margin-top: 15px; display: flex; justify-content: center; gap: 10px; }
+        .btn-switch:hover, .btn-fetch:hover, .btn-reset:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 
-        .unit-input-group {
-            display: flex; align-items: center; gap: 10px;
-            background: #1e293b; border: 1px solid #475569; padding: 4px 12px;
-            border-radius: 8px; transition: all 0.3s;
-        }
-        .unit-input-group:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); }
-
-        .unit-label { font-size: 13px; color: #cbd5e1; white-space: nowrap; font-weight: 500; }
-        .unit-input {
-            width: 50px; background: transparent; border: none; color: var(--warning);
-            font-weight: 700; font-size: 16px; text-align: center; outline: none; padding: 8px 0;
-        }
-        .unit-input::-webkit-outer-spin-button, .unit-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-
-        .btn-switch {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white; border: none; padding: 0 20px; border-radius: 8px;
-            cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.3s;
-            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); white-space: nowrap;
-        }
-        .btn-switch:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4); }
-        .btn-switch:active { transform: translateY(0); }
-
-        /* --- Stats --- */
-        .strategy-box {
-            background: rgba(15, 23, 42, 0.4);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 16px;
-        }
-        .strategy-title {
-            font-size: 13px; color: var(--text-muted); margin-bottom: 12px;
-            text-align: center; text-transform: uppercase; letter-spacing: 1px;
-        }
+        /* Stats Grid */
+        .strategy-box { background: rgba(15,23,42,0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; }
         .strategy-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        @media(max-width: 600px) { .strategy-grid { grid-template-columns: repeat(2, 1fr); } }
-        .stat-item {
-            background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;
-            text-align: center; transition: transform 0.2s;
-        }
-        .stat-item:hover { transform: translateY(-2px); background: rgba(255,255,255,0.05); }
-        .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .stat-item { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; text-align: center; }
         .stat-value { font-size: 16px; font-weight: 700; color: white; }
-        .val-win { color: var(--success); text-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
-        .val-loss { color: var(--danger); text-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
-
-        /* --- Prediction --- */
-        .last-bet-info {
-            text-align: center; font-size: 13px; color: var(--text-muted); margin-bottom: 15px;
-            background: rgba(255,255,255,0.03); padding: 6px; border-radius: 20px;
-            display: inline-block; width: 100%;
-        }
+        .val-win { color: var(--success); } .val-loss { color: var(--danger); }
+        
+        /* Prediction & History */
         .signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-        .signal-btn {
-            padding: 15px; border-radius: 12px; text-align: center; font-size: 14px; font-weight: 700;
-            background: rgba(30, 41, 59, 0.5); color: #64748b; border: 1px solid transparent;
-            transition: all 0.3s; position: relative; overflow: hidden;
-        }
-        .signal-btn.active {
-            color: white; border: 1px solid rgba(255,255,255,0.5); transform: scale(1.02);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-        }
+        .signal-btn { padding: 15px; border-radius: 12px; text-align: center; background: rgba(30,41,59,0.5); color: #64748b; border: 1px solid transparent; transition: 0.3s; }
+        .signal-btn.active { color: white; transform: scale(1.02); border-color: rgba(255,255,255,0.5); }
         .sig-super.active { background: linear-gradient(135deg, #f97316, #ef4444); }
         .sig-strong.active { background: linear-gradient(135deg, #10b981, #06b6d4); }
         .sig-weak.active { background: linear-gradient(135deg, #64748b, #475569); }
         .sig-stop.active { background: linear-gradient(135deg, #475569, #1e293b); color: #ef4444; }
 
         .sniper-balls { display: flex; justify-content: center; gap: 24px; margin: 24px 0; }
-        .s-ball {
-            width: 64px; height: 64px; line-height: 64px; border-radius: 50%; font-size: 26px; font-weight: 800;
-            background: radial-gradient(circle at 30% 30%, #d8b4fe, #7c3aed); color: white; text-align: center;
-            box-shadow: inset -5px -5px 10px rgba(0,0,0,0.4), 0 0 20px rgba(124, 58, 237, 0.6);
-            border: 2px solid rgba(255,255,255,0.3); text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .s-label { font-size: 12px; color: var(--text-muted); margin-top: 8px; text-align: center; }
+        .s-ball { width: 64px; height: 64px; line-height: 64px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #d8b4fe, #7c3aed); color: white; text-align: center; font-size: 26px; font-weight: 800; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 0 20px rgba(124,58,237,0.6); }
 
-        /* --- History --- */
         .full-history-card { grid-column: 1 / -1; }
-        .history-table-container { overflow-x: auto; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
-        .full-history-table { width: 100%; border-collapse: collapse; font-size: 14px; white-space: nowrap; }
-        .full-history-table th {
-            background: rgba(30, 41, 59, 0.9); padding: 14px; color: var(--text-muted);
-            font-weight: 600; text-align: center; border-bottom: 2px solid rgba(255,255,255,0.05);
-        }
-        .full-history-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); text-align: center; color: #e2e8f0; }
-        .full-history-table tr:hover { background: rgba(255,255,255,0.02); }
-
-        .num-ball {
-            display: inline-block; width: 24px; height: 24px; line-height: 24px; border-radius: 50%;
-            font-size: 12px; margin: 0 2px; color: #94a3b8; background: #1e293b; font-weight: bold;
-        }
-        .num-hit-0 { background: #ef4444; color: white; box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
-        .num-hit-1 { background: #f59e0b; color: black; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
-        .num-hit-2 { background: #06b6d4; color: white; box-shadow: 0 0 8px rgba(6, 182, 212, 0.4); }
-
-        .res-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
-        .badge-win { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-        .badge-loss { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); opacity: 0.8; }
-
-        .pagination { display: flex; justify-content: center; gap: 15px; margin-top: 20px; align-items: center; }
-        .page-btn { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
-        .page-btn:hover:not(:disabled) { background: var(--primary); }
-        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        .btn-fetch {
-            background: linear-gradient(135deg, var(--primary), #4f46e5); color: white; border: none;
-            padding: 14px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: 700;
-            cursor: pointer; margin-top: 15px; display: flex; align-items: center; justify-content: center;
-            gap: 10px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-        .btn-fetch:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5); }
-
-        .progress-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.9); z-index: 10; display: none; justify-content: center;
-            align-items: center; flex-direction: column; backdrop-filter: blur(5px);
-        }
-        .progress-bar-bg { width: 60%; height: 6px; background: #334155; border-radius: 10px; overflow: hidden; margin-top: 15px; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 0%; transition: width 0.3s; }
-
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        .history-table-container { overflow-x: auto; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; }
+        .full-history-table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 14px; text-align: center; }
+        .full-history-table th { background: rgba(30,41,59,0.9); padding: 14px; color: var(--text-muted); }
+        .full-history-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); color: #e2e8f0; }
+        
+        .num-ball { display: inline-block; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; font-size: 12px; margin: 0 2px; color: #94a3b8; background: #1e293b; font-weight: bold; }
+        .num-hit-0 { background: #ef4444; color: white; } .num-hit-1 { background: #f59e0b; color: black; } .num-hit-2 { background: #06b6d4; color: white; }
+        .res-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; }
+        .badge-win { background: rgba(16,185,129,0.15); color: #34d399; } .badge-loss { background: rgba(239,68,68,0.15); color: #f87171; }
 
         .chart-container { position: relative; height: 350px; width: 100%; margin-top: 10px; }
-        
-        #manualInputSection { display: none; margin-top: 10px; padding: 15px; background: linear-gradient(135deg, #ef4444, #991b1b); border-radius: 8px; text-align: center; }
+        #manualInputSection { display: none; margin-top: 10px; padding: 15px; background: #991b1b; border-radius: 8px; text-align: center; }
+        .progress-overlay { position: absolute; inset:0; background: rgba(15,23,42,0.9); z-index: 10; display: none; justify-content: center; align-items: center; flex-direction: column; }
+        .spin { animation: spin 1s linear infinite; } @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* --- CUSTOM MODAL --- */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7); z-index: 9999;
-            display: none; justify-content: center; align-items: center;
-            backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s ease;
-        }
-        .modal-overlay.show { display: flex; opacity: 1; }
-        
-        .modal-box {
-            background: rgba(30, 41, 59, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 30px; border-radius: 20px;
-            width: 90%; max-width: 400px;
-            text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
+        /* Modal */
+        .modal-overlay { position: fixed; inset:0; background: rgba(0,0,0,0.7); z-index: 999; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
+        .modal-overlay.show { opacity: 1; }
+        .modal-box { background: #1e293b; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; transform: scale(0.9); transition: transform 0.3s; border: 1px solid rgba(255,255,255,0.1); }
         .modal-overlay.show .modal-box { transform: scale(1); }
-
-        .modal-icon { font-size: 40px; margin-bottom: 15px; }
-        .modal-title { font-size: 20px; font-weight: 700; color: white; margin-bottom: 10px; }
-        .modal-msg { font-size: 14px; color: #cbd5e1; margin-bottom: 25px; line-height: 1.6; }
-        .modal-actions { display: flex; gap: 10px; justify-content: center; }
-        .modal-btn { flex: 1; padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .modal-btn-cancel { background: #334155; color: white; }
-        .modal-btn-cancel:hover { background: #475569; }
-        .modal-btn-confirm { background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; }
-        .modal-btn-confirm:hover { box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); transform: translateY(-2px); }
-        .modal-btn-ok { background: linear-gradient(135deg, var(--primary), #4f46e5); color: white; }
-        .modal-btn-ok:hover { box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); transform: translateY(-2px); }
-
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; }
     </style>
 </head>
 <body class="mode-a">
 
 <div id="customModal" class="modal-overlay">
     <div class="modal-box">
-        <div id="modalIcon" class="modal-icon">⚠️</div>
-        <div id="modalTitle" class="modal-title">標題</div>
-        <div id="modalMsg" class="modal-msg">內容</div>
+        <div id="modalIcon" style="font-size:40px; margin-bottom:10px;"></div>
+        <div id="modalTitle" style="font-size:20px; font-weight:bold; color:white; margin-bottom:10px;"></div>
+        <div id="modalMsg" style="color:#cbd5e1; line-height:1.6;"></div>
         <div id="modalActions" class="modal-actions"></div>
     </div>
 </div>
 
 <div class="container">
     <header>
-        <h1 id="app-title">Lotto 539 Trading System</h1>
+        <h1>Lotto 539 Trading System</h1>
     </header>
 
     <div class="mode-switcher">
-        <button class="mode-btn active" id="btnModeA" onclick="setMode('A')">玩法 A：聰明包牌</button>
-        <button class="mode-btn" id="btnModeB" onclick="setMode('B')">玩法 B：獨支 Sniper</button>
+        <button class="mode-btn active" id="btnModeA" onclick="App.setMode('A')">玩法 A：聰明包牌</button>
+        <button class="mode-btn" id="btnModeB" onclick="App.setMode('B')">玩法 B：獨支 Sniper</button>
     </div>
 
     <div class="status-container">
         <div class="status-bar-content">
             <div class="status-text-group">
-                <div id="statusText" class="loading">⏳ 系統啟動中...</div>
-                <div class="data-info-block" id="dataInfoBlock">
-                    <span style="opacity:0.5;">等待載入...</span>
-                </div>
+                <div id="statusText" style="font-weight:600;">⏳ 系統啟動中...</div>
+                <div class="data-info-block" id="dataInfoBlock" style="font-size:12px; color:var(--text-muted);"></div>
             </div>
-            
-            <button class="btn-reset" onclick="resetAndReloadData()" id="btnResetData">
-                🔄 重新驗證數據
-            </button>
+            <button class="btn-reset" onclick="App.resetData()" id="btnResetData">🔄 重新驗證數據</button>
         </div>
-        <div class="status-progress-bar">
-            <div class="status-progress-fill" id="statusProgressBar"></div>
-        </div>
+        <div class="status-progress-bar"><div class="status-progress-fill" id="statusProgressBar"></div></div>
     </div>
 
     <div id="manualInputSection">
-        <p style="color:white; font-weight:bold;">⚠️ 自動更新失敗，請手動輸入最新一期號碼：</p>
-        <input type="number" class="manual-input" id="m1">
-        <input type="number" class="manual-input" id="m2">
-        <input type="number" class="manual-input" id="m3">
-        <input type="number" class="manual-input" id="m4">
-        <input type="number" class="manual-input" id="m5">
-        <button onclick="manualStart()" style="padding:5px 15px; cursor:pointer; color:black; background:white; border:none; border-radius:4px; font-weight:bold;">確認</button>
+        <p style="color:white; font-weight:bold;">⚠️ 自動更新失敗，請手動輸入最新一期：</p>
+        <div style="display:flex; justify-content:center; gap:5px; margin-bottom:10px;">
+            <input type="number" id="m1" style="width:40px;"><input type="number" id="m2" style="width:40px;">
+            <input type="number" id="m3" style="width:40px;"><input type="number" id="m4" style="width:40px;">
+            <input type="number" id="m5" style="width:40px;">
+        </div>
+        <button onclick="App.manualInput()" style="padding:5px 15px; cursor:pointer;">確認</button>
     </div>
 
     <div class="dashboard">
-        <div class="card" id="card-backtest">
-            <h2>
-                <span>💰 策略回測報告</span>
-                <span class="card-tag" id="current-strategy-tag">New Sniper</span>
-            </h2>
-            
+        <div class="card">
+            <h2><span>💰 策略回測報告</span><span class="card-tag" id="current-strategy-tag">New Sniper</span></h2>
             <div class="strategy-control-panel">
                 <div class="control-row">
-                    <div class="select-wrapper">
-                        <select id="strategySelect" class="strategy-select"></select>
-                        <div class="select-arrow"></div>
-                    </div>
+                    <select id="strategySelect" class="strategy-select"></select>
                 </div>
                 <div class="control-row">
                     <div class="unit-input-group">
-                        <span class="unit-label">基本單位 ($):</span>
+                        <span style="font-size:13px; color:#cbd5e1;">基本單位 ($):</span>
                         <input type="number" id="baseUnit" class="unit-input" value="1" min="1">
                     </div>
-                    <button class="btn-switch" onclick="runAnalysisWithLoading()">切換 / 計算</button>
+                    <button class="btn-switch" onclick="App.runAnalysis()">切換 / 計算</button>
                 </div>
             </div>
-
             <div class="progress-overlay" id="loadingBar">
-                <div style="color:white; font-weight:bold; font-size:16px;">AI 運算中...</div>
-                <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+                <div style="color:white; font-weight:bold;">AI 運算中...</div>
+                <div style="width:60%; height:6px; background:#334155; border-radius:10px; margin-top:10px; overflow:hidden;"><div style="height:100%; background:var(--primary); width:0%; transition:width 0.3s;" id="progressFill"></div></div>
             </div>
-            
-            <div class="strategy-box" id="strategyBox">
-                <div class="strategy-title">
-                    📊 歷史績效 (共 <span id="real-test-count-disp" style="color:var(--primary);">--</span> 期)
-                </div>
+            <div class="strategy-box">
                 <div class="strategy-grid">
-                    <div class="stat-item">
-                        <div class="stat-label">累積淨利 (Net)</div>
-                        <div class="stat-value val-win" id="st-profit">--</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">投資報酬率 (ROI)</div>
-                        <div class="stat-value val-win" id="st-roi">--%</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">勝率 (Win Rate)</div>
-                        <div class="stat-value" id="st-winrate">--%</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">總下注單數</div>
-                        <div class="stat-value" id="st-count" style="color:#f472b6;">--</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">最高連勝</div>
-                        <div class="stat-value val-win" id="st-max-win">--</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">最高連敗</div>
-                        <div class="stat-value val-loss" id="st-max-loss">--</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">最大回撤 (MDD)</div>
-                        <div class="stat-value val-loss" id="st-mdd">--</div>
-                    </div>
-                    <div class="stat-item" style="opacity:0.6;">
-                         <div class="stat-label">倍率設定</div>
-                         <div class="stat-value" id="st-unit">1</div>
-                    </div>
+                    <div class="stat-item"><div class="stat-label">累積淨利</div><div class="stat-value" id="st-profit">--</div></div>
+                    <div class="stat-item"><div class="stat-label">ROI</div><div class="stat-value" id="st-roi">--%</div></div>
+                    <div class="stat-item"><div class="stat-label">勝率</div><div class="stat-value" id="st-winrate">--%</div></div>
+                    <div class="stat-item"><div class="stat-label">總單數</div><div class="stat-value" id="st-count">--</div></div>
+                    <div class="stat-item"><div class="stat-label">最大連勝</div><div class="stat-value val-win" id="st-max-win">--</div></div>
+                    <div class="stat-item"><div class="stat-label">最大連敗</div><div class="stat-value val-loss" id="st-max-loss">--</div></div>
+                    <div class="stat-item"><div class="stat-label">MDD</div><div class="stat-value val-loss" id="st-mdd">--</div></div>
                 </div>
-                <div id="strategy-desc" style="font-size:12px; color:var(--text-muted); margin-top:15px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.1);">
-                    --
-                </div>
+                <div id="strategy-desc" style="font-size:12px; color:var(--text-muted); margin-top:10px; text-align:center;"></div>
             </div>
         </div>
 
         <div class="card">
-            <h2>
-                <span>🔮 下一期操盤建議</span>
-                <span class="card-tag" style="background:#ec4899;">Signal</span>
-            </h2>
-            
-            <div class="last-bet-info">
-                📅 最後訊號日: <span id="last-bet-date" style="color:var(--primary); font-weight:bold;">--/--</span>
+            <h2><span>🔮 下一期操盤建議</span><span class="card-tag" style="background:#ec4899;">Signal</span></h2>
+            <div style="text-align:center; padding:10px 0;">
+                <div style="font-size:13px; color:var(--text-muted);">最後訊號日: <span id="last-bet-date" style="color:var(--primary);">--/--</span></div>
+                <div id="nextDrawDate" style="font-size:24px; font-weight:800; color:white; margin-top:5px;">--/--</div>
+                <div id="nextWeekday" style="font-size:16px; color:var(--secondary); font-weight:bold;">週--</div>
             </div>
 
-            <div style="text-align:center; padding:15px 0;">
-                <div style="font-size:14px; color:var(--text-muted); margin-bottom:5px;">預測開獎日</div>
-                <div id="nextDrawDate" style="font-size:24px; font-weight:800; color:white; text-shadow:0 0 15px rgba(255,255,255,0.2);">--/--</div>
-                <div id="nextWeekday" style="font-size:16px; color:var(--secondary); margin-top:4px; font-weight:bold;">週--</div>
-            </div>
-
-            <div id="prediction-panel">
-                <div id="panel-mode-a" style="display:block;">
-                    <div class="signal-grid">
-                        <div id="btn-super" class="signal-btn sig-super">🔥 強力訊號<br><span style="font-size:11px; font-weight:normal; opacity:0.8;">2倍 / 翻倍</span></div>
-                        <div id="btn-strong" class="signal-btn sig-strong">⚡ 雙邊訊號<br><span style="font-size:11px; font-weight:normal; opacity:0.8;">P1 & P2</span></div>
-                        <div id="btn-weak" class="signal-btn sig-weak">❄️ 標準訊號<br><span style="font-size:11px; font-weight:normal; opacity:0.8;">1倍 P1</span></div>
-                        <div id="btn-stop" class="signal-btn sig-stop">🛑 暫停/風險<br><span style="font-size:11px; font-weight:normal; opacity:0.8;">濾網未過</span></div>
-                    </div>
-                    <div class="strategy-box" style="background: rgba(0,0,0,0.3); border-color:var(--primary-glow);">
-                        <div class="strategy-title" style="color:#ddd; justify-content:center;">
-                            推薦組合 (Package)
-                        </div>
-                        <div style="text-align:center; margin-top:10px;">
-                            <div style="font-size:22px; font-weight:bold; color:var(--warning); text-shadow:0 0 10px rgba(245,158,11,0.4);" id="pred-combo">--</div>
-                            <div style="font-size:13px; color:var(--text-muted); margin-top:8px;" id="pred-desc">--</div>
-                        </div>
-                    </div>
+            <div id="panel-mode-a">
+                <div class="signal-grid">
+                    <div id="btn-super" class="signal-btn sig-super">🔥 強力/連勝<br><small>2-4倍 / 翻倍</small></div>
+                    <div id="btn-strong" class="signal-btn sig-strong">⚡ 雙邊訊號<br><small>P1 & P2</small></div>
+                    <div id="btn-weak" class="signal-btn sig-weak">❄️ 標準訊號<br><small>1倍 P1</small></div>
+                    <div id="btn-stop" class="signal-btn sig-stop">🛑 暫停/風險<br><small>過熱保護</small></div>
                 </div>
-
-                <div id="panel-mode-b" style="display:none;">
-                    <div id="sniper-status" style="text-align:center; font-size:16px; font-weight:bold; margin-bottom:15px; color:var(--text-muted);">
-                        檢測訊號中...
-                    </div>
-                    <div class="sniper-balls" id="sniper-balls-container" style="display:none;">
-                        <div class="s-ball-box">
-                            <div class="s-ball" id="ball-1">--</div>
-                            <div class="s-label">第一熱門</div>
-                        </div>
-                        <div class="s-ball-box">
-                            <div class="s-ball" id="ball-2">--</div>
-                            <div class="s-label">第二熱門</div>
-                        </div>
-                    </div>
-                    <div class="strategy-box" style="border-color:var(--secondary); background:rgba(236, 72, 153, 0.1);">
-                         <div style="text-align:center; font-size:14px; color:#ddd;">
-                             🎯 <b>Sniper-6 策略規則</b><br>
-                             <span style="font-size:12px; color:#aaa;">近15期榜首剛好出現6次 ➡ 進場</span><br>
-                             <span style="font-size:12px; color:#aaa; margin-top:5px; display:inline-block;">成本: $5,700 / 獎金: $21,200</span>
-                         </div>
-                    </div>
+                <div style="text-align:center;">
+                    <div style="font-size:22px; font-weight:bold; color:var(--warning);" id="pred-combo">--</div>
+                    <div style="font-size:13px; color:var(--text-muted);" id="pred-desc">--</div>
                 </div>
             </div>
+
+            <div id="panel-mode-b" style="display:none;">
+                <div id="sniper-status" style="text-align:center; margin-bottom:15px; color:var(--text-muted);">檢測中...</div>
+                <div class="sniper-balls" id="sniper-balls-container" style="display:none;">
+                    <div><div class="s-ball" id="ball-1">--</div><div style="text-align:center; font-size:12px; margin-top:5px; color:#aaa;">Top 1</div></div>
+                    <div><div class="s-ball" id="ball-2">--</div><div style="text-align:center; font-size:12px; margin-top:5px; color:#aaa;">Top 2</div></div>
+                </div>
+                <div class="strategy-box" id="sniper-msg-box" style="text-align:center; font-size:14px;"></div>
+            </div>
             
-            <button id="btnFetch" class="btn-fetch" onclick="forceFetchData()">
-                <span id="fetchIcon">🔄</span> 
-                <span id="fetchText">手動抓取最新數據</span>
+            <button id="btnFetch" class="btn-fetch" onclick="Data.forceFetch()">
+                <span id="fetchIcon">🔄</span><span id="fetchText">手動抓取最新數據</span>
             </button>
         </div>
         
         <div class="card full-history-card">
-            <h2>
-                <span>📜 詳細下注歷史紀錄</span>
-                <span class="card-tag">History</span>
-            </h2>
+            <h2><span>📜 詳細歷史紀錄</span></h2>
             <div class="history-table-container">
                 <table class="full-history-table">
-                    <thead>
-                        <tr>
-                            <th>日期</th>
-                            <th>開獎號碼</th>
-                            <th>訊號/預測</th>
-                            <th>下注金額</th>
-                            <th>淨損益</th>
-                            <th>結果</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>日期</th><th>開獎號碼</th><th>訊號</th><th>下注</th><th>淨損益</th><th>結果</th></tr></thead>
                     <tbody id="fullHistoryBody"></tbody>
                 </table>
             </div>
-            <div class="pagination">
-                <button class="page-btn" onclick="changePage(-1)">◀ 上一頁</button>
-                <span class="page-info" id="pageInfo">第 1 / 1 頁</span>
-                <button class="page-btn" onclick="changePage(1)">下一頁 ▶</button>
+            <div style="display:flex; justify-content:center; gap:15px; margin-top:20px;">
+                <button onclick="UI.changePage(-1)" style="padding:8px; cursor:pointer;">◀</button>
+                <span id="pageInfo" style="line-height:30px;">1 / 1</span>
+                <button onclick="UI.changePage(1)" style="padding:8px; cursor:pointer;">▶</button>
             </div>
         </div>
         
         <div class="card full-history-card">
-            <h2>
-                <span>📈 資金權益走勢圖</span>
-                <span class="card-tag" style="background:#10b981;">Equity Curve</span>
-            </h2>
-            <div class="chart-container">
-                <canvas id="equityChart"></canvas>
-            </div>
+            <h2><span>📈 資金權益走勢圖</span></h2>
+            <div class="chart-container"><canvas id="equityChart"></canvas></div>
         </div>
     </div>
     
     <script>
-        // ==========================================
-        //  設定區：您的 Google Drive 檔案 ID
-        // ==========================================
-        const DRIVE_FILE_ID = '1K2CNRIE97NRfJrzKiG8Adcz_tFeYHPlm';
-        
-        // 核心參數
-        let fullData = [];
-        let currentMode = 'A'; 
-        let currentStrategyA = 'sniper_new'; 
-        let globalTradeHistory = []; 
-        let currentPage = 1;
-        const ITEMS_PER_PAGE = 10;
-        
-        const STORAGE_KEY = 'lotto539_data_cache_v8_cloud'; 
-        const CRAWL_PAGES = 3; 
-        const BASE_URL = "https://www.lotto-8.com/listlto539.asp";
-        
-        const COST_PER_BET_A = 1062;
-        const PRIZE_3 = 1710;
-        const PRIZE_4 = 2280;
-        
-        const COST_PER_BET_B = 5700; 
-        const PRIZE_B = 21200;
-
-        const HEADS = {
-            0: [1,2,3,4,5,6,7,8,9],
-            1: [11,12,13,14,15,16,17,18,19],
-            2: [21,22,23,24,25,26,27,28,29],
-            3: [31,32,33,34,35,36,37,38,39]
+        // --- 1. Helper & Config ---
+        const $ = id => document.getElementById(id);
+        const CONST = {
+            DRIVE_ID: '1K2CNRIE97NRfJrzKiG8Adcz_tFeYHPlm',
+            STORAGE: 'lotto539_data_slim_v2', // Changed v2
+            BASE_URL: "https://www.lotto-8.com/listlto539.asp",
+            COST_A: 1062, PRIZE_3: 1710, PRIZE_4: 2280,
+            COST_B: 5700, PRIZE_B: 21200,
+            HEADS: { 0:[1,2,3,4,5,6,7,8,9], 1:[11,12,13,14,15,16,17,18,19], 2:[21,22,23,24,25,26,27,28,29], 3:[31,32,33,34,35,36,37,38,39] }
         };
-        
-        let equityChartInstance = null;
 
-        window.onload = initSystem;
+        let AppState = { fullData: [], mode: 'A', history: [], page: 1, chart: null };
 
-        function setStatus(text, type = 'loading') {
-            const el = document.getElementById('statusText');
-            el.innerText = text;
-            el.className = type;
-            
-            const bar = document.getElementById('statusProgressBar');
-            if (type === 'loading' || type === 'syncing') {
-                bar.classList.add('indeterminate');
-            } else {
-                bar.classList.remove('indeterminate');
-                bar.style.width = '100%';
-                setTimeout(() => { bar.style.width = '0%'; }, 1000);
-            }
-        }
-
-        // --- Custom Modal Helper ---
-        function showModal(type, title, msg) {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('customModal');
-                const icon = document.getElementById('modalIcon');
-                const titleEl = document.getElementById('modalTitle');
-                const msgEl = document.getElementById('modalMsg');
-                const actionsEl = document.getElementById('modalActions');
+        // --- 2. Data Module ---
+        const Data = {
+            async init() {
+                try { AppState.fullData = JSON.parse(localStorage.getItem(CONST.STORAGE) || '[]'); } catch(e){}
+                if(AppState.fullData.length === 0) await this.fetchCloud();
+                this.forceFetch(true);
+            },
+            async fetchCloud() {
+                UI.status("☁️ 同步雲端數據...", "syncing");
+                try {
+                    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://drive.google.com/uc?export=download&id=${CONST.DRIVE_ID}`)}`);
+                    const data = await res.json();
+                    this.merge(data);
+                } catch(e) { console.error(e); }
+            },
+            async forceFetch(isAuto = false) {
+                if(!isAuto) {
+                    $('btnFetch').disabled = true; $('fetchText').innerText = "更新中..."; $('fetchIcon').classList.add('spin');
+                }
+                UI.status("📡 抓取最新開獎...", "syncing");
                 
-                titleEl.innerText = title;
-                msgEl.innerText = msg;
-                msgEl.innerHTML = msg.replace(/\n/g, '<br>');
-
-                actionsEl.innerHTML = ''; 
-
-                if (type === 'confirm') {
-                    icon.innerText = '⚠️';
-                    
-                    const btnCancel = document.createElement('button');
-                    btnCancel.className = 'modal-btn modal-btn-cancel';
-                    btnCancel.innerText = '取消';
-                    btnCancel.onclick = () => {
-                        modal.classList.remove('show');
-                        setTimeout(() => { modal.style.display = 'none'; }, 300);
-                        resolve(false);
-                    };
-                    
-                    const btnConfirm = document.createElement('button');
-                    btnConfirm.className = 'modal-btn modal-btn-confirm';
-                    btnConfirm.innerText = '確定重置';
-                    btnConfirm.onclick = () => {
-                        modal.classList.remove('show');
-                        setTimeout(() => { modal.style.display = 'none'; }, 300);
-                        resolve(true);
-                    };
-                    
-                    actionsEl.appendChild(btnCancel);
-                    actionsEl.appendChild(btnConfirm);
-                } else {
-                    icon.innerText = type === 'error' ? '❌' : '✅';
-                    const btnOk = document.createElement('button');
-                    btnOk.className = 'modal-btn modal-btn-ok';
-                    btnOk.innerText = '好';
-                    btnOk.onclick = () => {
-                        modal.classList.remove('show');
-                        setTimeout(() => { modal.style.display = 'none'; }, 300);
-                        resolve(true);
-                    };
-                    actionsEl.appendChild(btnOk);
-                }
-
-                modal.style.display = 'flex';
-                void modal.offsetWidth;
-                modal.classList.add('show');
-            });
-        }
-
-        async function fetchCloudData() {
-            setStatus("☁️ 正在下載雲端歷史數據...", 'syncing');
-
-            const driveUrl = `https://drive.google.com/uc?export=download&id=${DRIVE_FILE_ID}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(driveUrl)}`;
-
-            try {
-                let res = await fetch(proxyUrl);
-                if (!res.ok) throw new Error("Network response was not ok");
-                let data = await res.json();
-                console.log("雲端數據下載成功，共", data.length, "筆");
-                return data;
-            } catch (error) {
-                console.error("雲端下載失敗:", error);
-                setStatus("⚠️ 雲端下載失敗，使用本地/爬蟲", 'loading');
-                return []; 
-            }
-        }
-
-        async function initSystem() {
-            let cloudData = await fetchCloudData();
-            
-            let localData = [];
-            const localStr = localStorage.getItem(STORAGE_KEY);
-            if (localStr) {
-                try { localData = JSON.parse(localStr); } catch(e) {}
-            }
-
-            let mergedMap = new Map();
-            if (Array.isArray(cloudData)) cloudData.forEach(item => mergedMap.set(item.date, item));
-            if (Array.isArray(localData)) localData.forEach(item => mergedMap.set(item.date, item));
-
-            fullData = Array.from(mergedMap.values());
-            fullData.sort((a,b) => new Date(b.date) - new Date(a.date));
-            
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(fullData));
-            
-            updateStrategyOptions(); 
-            runAnalysisWithLoading();
-
-            await forceFetchData(); 
-        }
-
-        async function resetAndReloadData() {
-            const confirmed = await showModal('confirm', '資料重置確認', '您確定要執行「重新驗證」嗎？\n\n這將會刪除快取、重新下載雲端檔案並補齊最新數據。');
-            
-            if (!confirmed) return;
-
-            const btn = document.getElementById('btnResetData');
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = "⏳ 重置中...";
-            
-            setStatus("♻️ 清除快取並重新同步中...", 'syncing');
-
-            try {
-                localStorage.removeItem(STORAGE_KEY);
-                fullData = []; 
-
-                let cloudData = await fetchCloudData();
-
-                let mergedMap = new Map();
-                if (Array.isArray(cloudData)) {
-                    cloudData.forEach(item => mergedMap.set(item.date, item));
-                }
-                
-                fullData = Array.from(mergedMap.values());
-                fullData.sort((a,b) => new Date(b.date) - new Date(a.date));
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(fullData));
-
-                runAnalysisWithLoading();
-                await forceFetchData();
-
-                await showModal('success', '重置完成', '數據已更新至最新狀態！');
-
-            } catch (e) {
-                console.error(e);
-                await showModal('error', '重置失敗', '過程發生錯誤，請檢查網路連接。');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        }
-
-        async function forceFetchData() {
-            const btn = document.getElementById('btnFetch');
-            
-            if(btn) {
-                btn.disabled = true;
-                btn.querySelector('#fetchText').innerText = "自動更新中...";
-                btn.querySelector('#fetchIcon').classList.add('spin');
-            }
-            setStatus("📡 背景同步新資料...", 'syncing');
-
-            const proxies = [
-                url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&timestamp=${Date.now()}`,
-                url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-            ];
-
-            let latestDate = (fullData.length > 0) ? fullData[0].date : "2000/01/01";
-            let newData = [];
-            let stop = false;
-
-            try {
-                for (let i = 1; i <= CRAWL_PAGES; i++) {
-                    if (stop) break;
-                    let targetUrl = i === 1 ? BASE_URL : `${BASE_URL}?indexpage=${i}&orderby=new`;
-                    let html = null;
-
-                    for (let attempt = 0; attempt < 3; attempt++) {
-                        for (let proxy of proxies) {
-                            try {
-                                let res = await fetch(proxy(targetUrl));
-                                let content = res.url.includes("allorigins") ? (await res.json()).contents : await res.text();
-                                if (content && content.length > 500) { html = content; break; }
-                            } catch(e) {}
-                        }
-                        if (html) break;
-                        await new Promise(r => setTimeout(r, 1000));
-                    }
-
-                    if (html) {
-                        let parsed = parseHtml(html);
-                        for (let row of parsed) {
-                            if (new Date(row.date) > new Date(latestDate)) {
-                                newData.push(row);
-                            } else {
-                                stop = true; 
-                            }
-                        }
-                    }
-                }
-
-                if (newData.length > 0) {
-                    fullData = [...newData, ...fullData];
-                    fullData.sort((a,b) => new Date(b.date) - new Date(a.date));
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(fullData));
-                    setStatus(`✅ 已更新 ${newData.length} 筆新資料`, 'success');
-                    runAnalysisWithLoading(); 
-                } else {
-                    setStatus("✅ 資料已是最新", 'success');
-                }
-
-            } catch (e) {
-                setStatus("⚠️ 連線逾時 (使用快取/雲端)", 'loading');
-            }
-
-            if(btn) {
-                btn.disabled = false;
-                btn.querySelector('#fetchText').innerText = "手動強制更新";
-                btn.querySelector('#fetchIcon').classList.remove('spin');
-            }
-        }
-
-        function parseHtml(html) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
-            let results = [];
-            doc.querySelectorAll("tr").forEach(row => {
-                const text = row.innerText.trim();
-                const dMatch = text.match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
-                if (dMatch) {
-                    let nums = text.match(/\d{2}/g);
-                    if (nums && nums.length >= 5) {
-                        let valid = [];
-                        for (let i = nums.length - 1; i >= 0; i--) {
-                            let n = parseInt(nums[i]);
-                            if (n >= 1 && n <= 39 && !valid.includes(n)) valid.unshift(n);
-                            if (valid.length === 5) break;
-                        }
-                        let dateStr = `${dMatch[1]}/${dMatch[2].padStart(2, '0')}/${dMatch[3].padStart(2, '0')}`;
-                        if (valid.length === 5) results.push({ date: dateStr, numbers: valid });
-                    }
-                }
-            });
-            return results;
-        }
-
-        async function manualStart() {
-            let inputs = [1,2,3,4,5].map(i => parseInt(document.getElementById('m'+i).value));
-            if(inputs.some(isNaN)) {
-                await showModal('error', '輸入錯誤', '請輸入完整的 5 個號碼！');
-                return;
-            }
-            
-            let today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
-            fullData.unshift({ date: today, numbers: inputs });
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(fullData));
-            document.getElementById('manualInputSection').style.display = 'none';
-            runAnalysisWithLoading();
-        }
-
-        function setMode(mode) {
-            currentMode = mode;
-            document.body.className = mode === 'A' ? 'mode-a' : 'mode-b';
-            document.getElementById('btnModeA').className = mode === 'A' ? 'mode-btn active' : 'mode-btn';
-            document.getElementById('btnModeB').className = mode === 'B' ? 'mode-btn active' : 'mode-btn';
-            document.getElementById('panel-mode-a').style.display = mode === 'A' ? 'block' : 'none';
-            document.getElementById('panel-mode-b').style.display = mode === 'B' ? 'block' : 'none';
-            
-            updateStrategyOptions();
-            runAnalysisWithLoading();
-        }
-
-        function updateStrategyOptions() {
-            const select = document.getElementById('strategySelect');
-            select.innerHTML = '';
-            if (currentMode === 'A') {
-                const opts = [
-                    {val: 'sniper_new', text: '1. 🥇 神射手 (New Sniper)'},
-                    {val: 'shield_new', text: '2. 🛡️ 堅盾防禦 (New Shield)'},
-                    {val: 'peak_martingale', text: '3. 💀 極限凹單 (Peak Martingale)'}
+                let newData = [];
+                const proxies = [
+                    u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}&timestamp=${Date.now()}`,
+                    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
                 ];
-                opts.forEach(o => {
-                    let el = document.createElement('option');
-                    el.value = o.val; el.text = o.text;
-                    select.add(el);
-                });
-                select.value = currentStrategyA;
-                select.disabled = false;
-            } else {
-                let el = document.createElement('option');
-                el.value = 'sniper'; el.text = 'Sniper-6 精準獨支 (Original)';
-                select.add(el);
-                select.disabled = true;
-            }
-        }
 
-        function runAnalysisWithLoading() {
-            const loading = document.getElementById('loadingBar');
-            const fill = document.getElementById('progressFill');
-            const select = document.getElementById('strategySelect');
-            
-            if (currentMode === 'A') currentStrategyA = select.value;
-            
-            loading.style.display = 'flex';
-            fill.style.width = '0%';
-            
-            setTimeout(() => { fill.style.width = '60%'; }, 200);
-            
-            setTimeout(() => { 
-                fill.style.width = '100%';
-                
-                // UPDATE DATA RANGE DISPLAY
-                const infoBlock = document.getElementById('dataInfoBlock');
-                if (fullData.length > 0) {
-                    const firstDate = fullData[fullData.length - 1].date;
-                    const lastDate = fullData[0].date;
-                    infoBlock.innerHTML = 
-                        `<div class="data-range-date">${firstDate} ~ ${lastDate}</div>
-                         <div class="data-count-highlight">庫存: ${fullData.length} 期</div>`;
-                } else {
-                    infoBlock.innerHTML = '<span style="opacity:0.5">無數據</span>';
-                }
-                
-                const unit = parseFloat(document.getElementById('baseUnit').value) || 1;
-                
-                // === FIXED: RESTORED PREDICTION CALL ===
-                predictNextDraw(); 
-                
-                let res;
-                if (currentMode === 'A') {
-                    res = runPackageBacktest(fullData, currentStrategyA, unit);
-                } else {
-                    res = runSniperBacktest(fullData, unit);
-                }
-                
-                updateStatBox(res);
-                currentPage = 1;
-                renderFullHistoryTable();
-                
-                updateEquityChart();
-                
-                if (currentMode === 'A') {
-                    const tagName = select.options[select.selectedIndex].text.split('(')[1].split(')')[0];
-                    document.getElementById('current-strategy-tag').innerText = tagName;
-                } else {
-                    document.getElementById('current-strategy-tag').innerText = "Sniper-6 (Original)";
-                }
-                
-                setTimeout(() => { loading.style.display = 'none'; }, 200);
-            }, 500);
-        }
-
-        function runPackageBacktest(data, strategy, baseUnit) {
-            let totalCost = 0, totalPrize = 0;
-            let winDays = 0, tradingDays = 0, totalBetUnits = 0;
-            let currentWin = 0, maxWin = 0, currentLoss = 0, maxLoss = 0;
-            let currentEquity = 0, peakEquity = 0, maxDrawdown = 0;
-            let lastBetDate = "無";
-            
-            let peakMartingaleMult = 1;
-            let lastTradeWon = false; 
-
-            globalTradeHistory = []; 
-
-            if(data.length < 22) return { cost: 0, net: 0, winDays: 0, tradingDays: 0, totalBetUnits:0, maxWin:0, maxLoss:0, maxDrawdown:0 };
-
-            for(let i = data.length - 21; i >= 0; i--) {
-                let targetDraw = data[i]; 
-                let past20 = data.slice(i+1, i+21);
-                let counts = getHeadCounts(past20);
-                
-                let others = {1: counts[1], 2: counts[2], 3: counts[3]};
-                let sortedHeads = Object.keys(others).sort((a,b) => others[b] - others[a]);
-                let p1 = parseInt(sortedHeads[0]);
-                let p2 = parseInt(sortedHeads[1]);
-                let gap = others[p1] - others[p2];
-                let count0 = counts[0];
-                
-                let date = new Date(targetDraw.date);
-                let day = date.getDay(); 
-                
-                let isTradeDay = false;
-
-                if (strategy === 'sniper_new' || strategy === 'peak_martingale') {
-                    isTradeDay = (day !== 2 && count0 <= 25);
-                } else if (strategy === 'shield_new') {
-                    isTradeDay = (day !== 2 && day !== 3 && count0 <= 22);
-                }
-                
-                let betUnits = 0; 
-                let dailyPrize = 0;
-                let signalText = "";
-                let isWin = false;
-
-                if (isTradeDay) {
-                    if (strategy === 'peak_martingale') {
-                        if (currentEquity >= peakEquity) {
-                            peakMartingaleMult = 1; 
-                        } else {
-                            if (!lastTradeWon) {
-                                peakMartingaleMult = Math.min(peakMartingaleMult * 2, 16);
-                            } 
+                try {
+                    for(let i=1; i<=3; i++) {
+                        let url = i===1 ? CONST.BASE_URL : `${CONST.BASE_URL}?indexpage=${i}&orderby=new`;
+                        let html = null;
+                        for(let proxy of proxies) {
+                            try {
+                                let res = await fetch(proxy(url));
+                                let txt = res.url.includes("allorigins") ? (await res.json()).contents : await res.text();
+                                if(txt.length > 500) { html = txt; break; }
+                            } catch(e){}
                         }
-
-                        betUnits = peakMartingaleMult;
-                        let cost = betUnits * COST_PER_BET_A * baseUnit;
-                        let prize = checkPrizeA(targetDraw.numbers, 0, p1) * betUnits * baseUnit;
-                        
-                        totalCost += cost;
-                        dailyPrize += prize;
-                        signalText = `0+${p1} (${peakMartingaleMult}倍)`;
-                        
-                        isWin = prize > cost;
-                        lastTradeWon = isWin;
-
-                    } else {
-                        if (gap >= 6) {
-                            betUnits = 2; 
-                            dailyPrize += checkPrizeA(targetDraw.numbers, 0, p1) * 2 * baseUnit;
-                            signalText = `0+${p1} (x2)`;
-                        } else if (gap <= 2) {
-                            betUnits = 2; 
-                            dailyPrize += checkPrizeA(targetDraw.numbers, 0, p1) * baseUnit;
-                            dailyPrize += checkPrizeA(targetDraw.numbers, 0, p2) * baseUnit;
-                            signalText = `0+${p1}&${p2}`;
-                        } else {
-                            betUnits = 1; 
-                            dailyPrize += checkPrizeA(targetDraw.numbers, 0, p1) * baseUnit;
-                            signalText = `0+${p1}`;
+                        if(html) {
+                            let parsed = this.parseHtml(html);
+                            let latest = AppState.fullData[0]?.date || "2000/01/01";
+                            let fresh = parsed.filter(row => row.date > latest);
+                            if(fresh.length === 0) break; 
+                            newData.push(...fresh);
                         }
-                        let cost = betUnits * COST_PER_BET_A * baseUnit;
-                        totalCost += cost;
-                        isWin = dailyPrize > cost;
                     }
-
-                    tradingDays++;
-                    totalBetUnits += betUnits; 
-                    totalPrize += dailyPrize;
-
-                    let costThisRound = (strategy === 'peak_martingale') ? (peakMartingaleMult * COST_PER_BET_A * baseUnit) : (betUnits * COST_PER_BET_A * baseUnit);
-                    currentEquity += (dailyPrize - costThisRound);
-                    
-                    if(currentEquity > peakEquity) peakEquity = currentEquity;
-                    let dd = currentEquity - peakEquity;
-                    if(dd < maxDrawdown) maxDrawdown = dd;
-                    
-                    if (isWin) {
-                        winDays++;
-                        currentWin++;
-                        currentLoss = 0;
-                        if(currentWin > maxWin) maxWin = currentWin;
+                    if(newData.length > 0) {
+                        this.merge(newData);
+                        UI.status(`✅ 更新 ${newData.length} 筆資料`, "success");
+                        App.runAnalysis();
                     } else {
-                        currentLoss++;
-                        currentWin = 0;
-                        if(currentLoss > maxLoss) maxLoss = currentLoss;
+                        UI.status("✅ 資料已是最新", "success");
                     }
-                    lastBetDate = targetDraw.date;
-
-                    globalTradeHistory.push({
-                        date: targetDraw.date,
-                        numbers: targetDraw.numbers,
-                        signal: signalText,
-                        cost: costThisRound,
-                        net: dailyPrize - costThisRound,
-                        isWin: isWin,
-                        heads: {p1, p2} 
-                    });
+                } catch(e) { 
+                    if(!isAuto) $('manualInputSection').style.display = 'block';
+                    UI.status("⚠️ 連線異常，請手動輸入", "loading");
                 }
-            }
-            
-            globalTradeHistory.reverse();
-
-            document.getElementById('last-bet-date').innerText = lastBetDate;
-            let desc = "";
-            if(strategy==='sniper_new') desc = "Sniper: 避週二，Gap>=6重注，<=2雙龍。";
-            if(strategy==='shield_new') desc = "Shield: 避週二三，嚴格過熱濾網。";
-            if(strategy==='peak_martingale') desc = "Peak: 資金創高前，輸則翻倍贏則追擊。";
-            document.getElementById('strategy-desc').innerText = desc;
-
-            return { cost: totalCost, net: totalPrize - totalCost, winDays, tradingDays, totalBetUnits, maxWin, maxLoss, maxDrawdown };
-        }
-
-        function runSniperBacktest(data, baseUnit) {
-            let totalCost = 0, totalPrize = 0;
-            let winDays = 0, tradingDays = 0, totalBetUnits = 0;
-            let currentWin = 0, maxWin = 0, currentLoss = 0, maxLoss = 0;
-            let currentEquity = 0, peakEquity = 0, maxDrawdown = 0;
-            let lastBetDate = "無";
-            
-            globalTradeHistory = [];
-
-            if(data.length < 16) return { cost: 0, net: 0, winDays: 0, tradingDays: 0, totalBetUnits:0, maxWin:0, maxLoss:0, maxDrawdown:0 };
-
-            for(let i = data.length - 16; i >= 0; i--) {
-                let targetDraw = data[i];
-                let past15 = data.slice(i+1, i+16);
                 
-                let numCounts = {};
-                for(let k=1; k<=39; k++) numCounts[k] = 0;
-                past15.forEach(d => {
-                    d.numbers.forEach(n => numCounts[n]++);
-                });
-                
-                let sortedNums = Object.keys(numCounts).sort((a,b) => {
-                    let diff = numCounts[b] - numCounts[a];
-                    if (diff !== 0) return diff;
-                    return parseInt(a) - parseInt(b); 
-                });
-                
-                let top1 = parseInt(sortedNums[0]);
-                let top2 = parseInt(sortedNums[1]);
-                let top1_count = numCounts[top1];
-
-                if (top1_count === 6) {
-                    tradingDays++;
-                    totalBetUnits += 2; 
-                    
-                    let cost = COST_PER_BET_B * baseUnit; 
-                    let dailyPrize = 0;
-                    
-                    if (targetDraw.numbers.includes(top1)) dailyPrize += PRIZE_B * baseUnit;
-                    if (targetDraw.numbers.includes(top2)) dailyPrize += PRIZE_B * baseUnit;
-                    
-                    totalCost += cost;
-                    totalPrize += dailyPrize;
-
-                    currentEquity += (dailyPrize - cost);
-                    if(currentEquity > peakEquity) peakEquity = currentEquity;
-                    let dd = currentEquity - peakEquity;
-                    if(dd < maxDrawdown) maxDrawdown = dd;
-                    
-                    let isWin = dailyPrize > cost;
-
-                    if (isWin) {
-                        winDays++;
-                        currentWin++;
-                        currentLoss = 0;
-                        if(currentWin > maxWin) maxWin = currentWin;
-                    } else {
-                        currentLoss++;
-                        currentWin = 0;
-                        if(currentLoss > maxLoss) maxLoss = currentLoss;
-                    }
-                    lastBetDate = targetDraw.date;
-                    
-                    globalTradeHistory.push({
-                        date: targetDraw.date,
-                        numbers: targetDraw.numbers,
-                        signal: `${top1}, ${top2}`,
-                        cost: cost,
-                        net: dailyPrize - cost,
-                        isWin: isWin,
-                        targets: [top1, top2] 
-                    });
+                if(!isAuto) {
+                    $('btnFetch').disabled = false; $('fetchText').innerText = "手動強制更新"; $('fetchIcon').classList.remove('spin');
                 }
-            }
-            
-            globalTradeHistory.reverse();
-
-            document.getElementById('last-bet-date').innerText = lastBetDate;
-            document.getElementById('strategy-desc').innerText = "Sniper-6 (Original): 近15期榜首剛好6次時，買前2熱號。";
-            
-            return { cost: totalCost, net: totalPrize - totalCost, winDays, tradingDays, totalBetUnits, maxWin, maxLoss, maxDrawdown };
-        }
-
-        function changePage(delta) {
-            const totalPages = Math.ceil(globalTradeHistory.length / ITEMS_PER_PAGE);
-            let newPage = currentPage + delta;
-            if (newPage >= 1 && newPage <= totalPages) {
-                currentPage = newPage;
-                renderFullHistoryTable();
-            }
-        }
-
-        function renderFullHistoryTable() {
-            const tbody = document.getElementById('fullHistoryBody');
-            const pageInfo = document.getElementById('pageInfo');
-            const totalItems = globalTradeHistory.length;
-            const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
-            
-            tbody.innerHTML = '';
-            pageInfo.innerText = `第 ${currentPage} / ${totalPages} 頁 (共 ${totalItems} 筆)`;
-
-            let start = (currentPage - 1) * ITEMS_PER_PAGE;
-            let end = Math.min(start + ITEMS_PER_PAGE, totalItems);
-
-            for (let i = start; i < end; i++) {
-                let row = globalTradeHistory[i];
-                let tr = document.createElement('tr');
-                
-                let numsHtml = row.numbers.map(n => {
-                    let className = "num-ball";
-                    if (currentMode === 'A') {
-                        let is0 = HEADS[0].includes(n);
-                        let isP1 = HEADS[row.heads.p1].includes(n);
-                        let isP2 = HEADS[row.heads.p2].includes(n);
-                        if (is0) className += " num-hit-0";
-                        else if (isP1) className += " num-hit-1";
-                        else if (isP2 && (row.signal.includes('&'))) className += " num-hit-2";
-                    } else {
-                        if (row.targets && row.targets.includes(n)) className += " num-hit-1"; 
-                    }
-                    return `<span class="${className}">${n<10?'0'+n:n}</span>`;
-                }).join('');
-
-                let resBadge = row.isWin ? `<span class="res-badge badge-win">WIN</span>` : `<span class="res-badge badge-loss">LOSS</span>`;
-                let netColor = row.net > 0 ? "var(--win)" : "var(--loss)";
-
-                tr.innerHTML = `
-                    <td style="color:#bdc3c7">${row.date.slice(5)}</td>
-                    <td>${numsHtml}</td>
-                    <td style="color:var(--gold)">${row.signal}</td>
-                    <td>$${row.cost.toLocaleString()}</td>
-                    <td style="color:${netColor}; font-weight:bold;">${row.net > 0 ? '+' : ''}$${row.net.toLocaleString()}</td>
-                    <td>${resBadge}</td>
-                `;
-                tbody.appendChild(tr);
-            }
-        }
-
-        function updateEquityChart() {
-            const ctx = document.getElementById('equityChart').getContext('2d');
-            
-            let chronoHistory = [...globalTradeHistory].reverse();
-            let labels = chronoHistory.map(d => d.date); 
-            let data = [];
-            let accum = 0;
-            
-            chronoHistory.forEach(d => {
-                accum += d.net;
-                data.push(accum);
-            });
-            
-            if (equityChartInstance) {
-                equityChartInstance.destroy();
-            }
-            
-            const yearBackgroundPlugin = {
-                id: 'yearBackground',
-                beforeDraw: (chart) => {
-                    const { ctx, chartArea: { top, bottom, height }, scales: { x } } = chart;
-                    
-                    ctx.save();
-                    
-                    let currentYear = null;
-                    let startX = x.getPixelForValue(0);
-                    
-                    const bgColors = [
-                        'rgba(255, 255, 255, 0.02)', 
-                        'rgba(255, 255, 255, 0.08)' 
-                    ];
-                    
-                    const labels = chart.data.labels;
-                    
-                    const drawSegment = (start, end, year) => {
-                        const width = end - start;
-                        const colorIndex = parseInt(year) % 2;
-                        
-                        ctx.fillStyle = bgColors[colorIndex];
-                        ctx.fillRect(start, top, width, height);
-                        
-                        ctx.font = 'bold 60px Arial';
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        if (width > 50) { 
-                            ctx.fillText(year, start + width / 2, top + height / 2);
+            },
+            merge(newData) {
+                const map = new Map();
+                [...newData, ...AppState.fullData].forEach(d => map.set(d.date, d));
+                AppState.fullData = Array.from(map.values()).sort((a,b) => b.date.localeCompare(a.date));
+                localStorage.setItem(CONST.STORAGE, JSON.stringify(AppState.fullData));
+                UI.updateInfo();
+            },
+            parseHtml(html) {
+                const doc = new DOMParser().parseFromString(html, "text/html");
+                let res = [];
+                doc.querySelectorAll("tr").forEach(row => {
+                    const txt = row.innerText.trim();
+                    const dMatch = txt.match(/(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+                    if(dMatch) {
+                        let allNums = txt.match(/\d{2}/g) || [];
+                        let valid = [];
+                        for(let i=allNums.length-1; i>=0; i--) {
+                            let n = parseInt(allNums[i]);
+                            if(n>=1 && n<=39 && !valid.includes(n)) valid.unshift(n);
+                            if(valid.length===5) break;
                         }
-                    };
+                        if(valid.length===5) res.push({ 
+                            date: `${dMatch[1]}/${dMatch[2].padStart(2,'0')}/${dMatch[3].padStart(2,'0')}`, 
+                            numbers: valid 
+                        });
+                    }
+                });
+                return res;
+            }
+        };
 
-                    for (let i = 0; i < labels.length; i++) {
-                        const year = labels[i].split('/')[0];
-                        if (year !== currentYear) {
-                            if (currentYear !== null) {
-                                const endX = x.getPixelForValue(i); 
-                                drawSegment(startX, endX, currentYear);
-                                startX = endX;
+        // --- 3. Strategy Logic (Updated) ---
+        const Strategy = {
+            getHeads(nums) {
+                return nums.reduce((acc, n) => {
+                    if(n<=9) acc[0]++; else if(n<=19) acc[1]++; else if(n<=29) acc[2]++; else acc[3]++;
+                    return acc;
+                }, {0:0, 1:0, 2:0, 3:0});
+            },
+            checkPrizeA(nums, hA, hB) {
+                let hits = {A:0, B:0, C:0};
+                nums.forEach(n => {
+                    if(CONST.HEADS[hA].includes(n)) hits.A++;
+                    else if(CONST.HEADS[hB].includes(n)) hits.B++;
+                    else hits.C++;
+                });
+                let s = Object.values(hits).sort((a,b)=>a-b);
+                if(s[0]===1 && s[1]===2 && s[2]===2) return CONST.PRIZE_4;
+                if(s[0]===1 && s[1]===1 && s[2]===3) return CONST.PRIZE_3;
+                return 0;
+            },
+            runA(strategy, unit) {
+                let stats = { cost:0, net:0, wins:0, trades:0, count:0, maxW:0, maxL:0, mdd:0 };
+                let equity=0, peak=0, curW=0, curL=0;
+                let data = AppState.fullData, hist = [];
+                let lastDate = "無";
+
+                let streak = 0; // 連勝計數
+                let lossStep = 0; // 凹單層級
+                const MARTINGALE_SEQ = [1, 2, 5, 14];
+
+                for(let i=data.length-21; i>=0; i--) {
+                    let today = data[i], past20 = data.slice(i+1, i+21);
+                    if(past20.length<20) continue;
+                    
+                    let counts = past20.reduce((acc, d) => {
+                         d.numbers.forEach(n => acc[n<=9?0:(n<=19?1:(n<=29?2:3))]++); return acc; 
+                    }, {0:0,1:0,2:0,3:0});
+
+                    let sorted = [1,2,3].sort((a,b) => counts[b]-counts[a]);
+                    let p1=sorted[0], p2=sorted[1], gap=counts[p1]-counts[p2], c0=counts[0];
+                    
+                    // 修正：移除週二週三濾網，僅保留0頭過熱保護
+                    let isTrade = false;
+                    if(strategy.includes('sniper') || strategy.includes('peak')) isTrade = (c0<=25);
+                    else if(strategy.includes('shield')) isTrade = (c0<=22);
+
+                    if(isTrade) {
+                        let bet = 1, prize = 0, txt = "", cost = 0;
+
+                        // 策略 A: 極限凹單
+                        if(strategy.includes('peak')) {
+                            if(equity >= peak) lossStep = 0; // 創新高重置
+                            
+                            bet = MARTINGALE_SEQ[Math.min(lossStep, MARTINGALE_SEQ.length-1)];
+                            cost = bet * CONST.COST_A * unit;
+                            prize = this.checkPrizeA(today.numbers, 0, p1) * bet * unit;
+                            txt = `0+${p1} (凹${bet}x)`;
+                            
+                            let isWin = prize > cost;
+                            if(isWin) lossStep = 0; // 贏了重置
+                            else lossStep++;        // 輸了升級
+                        } 
+                        // 策略 B & C: 神射手 / 堅盾
+                        else {
+                            let isStreakMode = streak >= 3;
+                            if(isStreakMode) {
+                                // 連勝追擊：強制單邊，依據連勝數加倍
+                                let mult = 2;
+                                if(streak === 4) mult = 3;
+                                if(streak >= 5) mult = 4;
+                                
+                                bet = mult;
+                                cost = bet * CONST.COST_A * unit;
+                                prize = this.checkPrizeA(today.numbers, 0, p1) * bet * unit;
+                                txt = `🔥連勝x${mult} (0+${p1})`;
+                            } else {
+                                // 標準邏輯
+                                if(gap >= 6) { 
+                                    bet=2; 
+                                    cost = bet * CONST.COST_A * unit;
+                                    prize = this.checkPrizeA(today.numbers, 0, p1)*2*unit; 
+                                    txt=`強力 0+${p1} (x2)`; 
+                                }
+                                else if(gap <= 2) { 
+                                    bet=2; 
+                                    cost = bet * CONST.COST_A * unit;
+                                    prize = (this.checkPrizeA(today.numbers,0,p1) + this.checkPrizeA(today.numbers,0,p2))*unit; 
+                                    txt=`雙龍 0+${p1}&${p2}`; 
+                                }
+                                else { 
+                                    bet=1; 
+                                    cost = bet * CONST.COST_A * unit;
+                                    prize = this.checkPrizeA(today.numbers, 0, p1)*unit; 
+                                    txt=`0+${p1}`; 
+                                }
                             }
-                            currentYear = year;
                         }
+                        
+                        let net = prize - cost;
+                        let isWin = net > 0;
+                        
+                        stats.cost += cost; stats.net += net; stats.trades++; stats.count += bet;
+                        equity += net;
+                        if(equity > peak) peak = equity;
+                        if(equity - peak < stats.mdd) stats.mdd = equity - peak;
+                        
+                        if(isWin) { 
+                            stats.wins++; curW++; curL=0; streak++; // 連勝累積
+                            if(curW>stats.maxW) stats.maxW=curW; 
+                        } else { 
+                            curL++; curW=0; streak=0; // 連勝中斷
+                            if(curL>stats.maxL) stats.maxL=curL; 
+                        }
+                        
+                        lastDate = today.date;
+                        hist.push({ date: today.date, numbers: today.numbers, signal: txt, cost, net, isWin, heads: {p1, p2} });
                     }
-                    const finalX = x.getPixelForValue(labels.length - 1);
-                    drawSegment(startX, finalX, currentYear);
-                    ctx.restore();
                 }
-            };
+                return { stats, hist: hist.reverse(), lastDate };
+            },
+            runB(unit) {
+                // Sniper B (獨支) 保持原樣
+                let stats = { cost:0, net:0, wins:0, trades:0, count:0, maxW:0, maxL:0, mdd:0 };
+                let equity=0, peak=0, curW=0, curL=0;
+                let data = AppState.fullData, hist = [];
+                
+                for(let i=data.length-16; i>=0; i--) {
+                    let today = data[i], past15 = data.slice(i+1, i+16);
+                    if(past15.length<15) continue;
+                    
+                    let freq = {};
+                    past15.forEach(d => d.numbers.forEach(n => freq[n] = (freq[n]||0)+1));
+                    let top = Object.keys(freq).sort((a,b) => freq[b]-freq[a] || a-b);
+                    let t1 = parseInt(top[0]), t2 = parseInt(top[1]);
+                    
+                    if(freq[t1] === 6) {
+                        let cost = CONST.COST_B * unit, prize = 0;
+                        if(today.numbers.includes(t1)) prize += CONST.PRIZE_B * unit;
+                        if(today.numbers.includes(t2)) prize += CONST.PRIZE_B * unit;
+                        let net = prize - cost;
+                        stats.cost += cost; stats.net += net; stats.trades++; stats.count+=2;
+                        equity += net; if(equity > peak) peak=equity;
+                        if(equity - peak < stats.mdd) stats.mdd = equity - peak;
+                        if(net > 0) { stats.wins++; curW++; curL=0; if(curW>stats.maxW) stats.maxW=curW; }
+                        else { curL++; curW=0; if(curL>stats.maxL) stats.maxL=curL; }
+                        hist.push({ date: today.date, numbers: today.numbers, signal: `${t1}, ${t2}`, cost, net, isWin: net>0, targets:[t1,t2] });
+                    }
+                }
+                return { stats, hist: hist.reverse(), lastDate: hist.length ? hist[0].date : "無" };
+            }
+        };
 
-            let gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(0, 184, 148, 0.5)'); 
-            gradient.addColorStop(1, 'rgba(0, 184, 148, 0)');
-
-            let finalPnl = data.length > 0 ? data[data.length-1] : 0;
-            let lineColor = finalPnl >= 0 ? '#00b894' : '#ff7675';
-
-            equityChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels, 
-                    datasets: [{
-                        label: '累積損益 (Equity)',
-                        data: data,
-                        borderColor: lineColor,
-                        backgroundColor: gradient,
-                        borderWidth: 2,
-                        pointRadius: 0, 
-                        pointHoverRadius: 6,
-                        fill: true,
-                        tension: 0.1
+        // --- 4. UI Module (Updated Prediction) ---
+        const UI = {
+            status(msg, type) {
+                $('statusText').innerText = msg;
+                let bar = $('statusProgressBar');
+                if(type === 'loading' || type === 'syncing') { bar.className='status-progress-fill indeterminate'; bar.style.width='30%'; }
+                else { bar.className='status-progress-fill'; bar.style.width='100%'; setTimeout(()=>bar.style.width='0%',1000); }
+            },
+            updateInfo() {
+                if(AppState.fullData.length) {
+                    $('dataInfoBlock').innerHTML = `${AppState.fullData[AppState.fullData.length-1].date} ~ ${AppState.fullData[0].date}<br><span style="color:var(--primary); font-weight:bold">庫存: ${AppState.fullData.length} 期</span>`;
+                }
+            },
+            showModal(title, msg, onConfirm) {
+                const m = $('customModal');
+                $('modalIcon').innerText = onConfirm ? '⚠️' : '✅';
+                $('modalTitle').innerText = title;
+                $('modalMsg').innerHTML = msg;
+                const act = $('modalActions'); act.innerHTML = '';
+                
+                if(onConfirm) {
+                    let b1 = document.createElement('button'); b1.className='modal-btn'; b1.style.background='#334155'; b1.innerText='取消'; b1.onclick = () => m.classList.remove('show') || setTimeout(()=>m.style.display='none',300);
+                    let b2 = document.createElement('button'); b2.className='modal-btn'; b2.style.background='#ef4444'; b2.innerText='確定'; b2.onclick = () => { m.classList.remove('show'); setTimeout(()=>m.style.display='none',300); onConfirm(); };
+                    act.append(b1, b2);
+                } else {
+                    let b = document.createElement('button'); b.className='modal-btn'; b.style.background='#6366f1'; b.innerText='好'; b.onclick = () => m.classList.remove('show') || setTimeout(()=>m.style.display='none',300);
+                    act.append(b);
+                }
+                m.style.display='flex'; setTimeout(()=>m.classList.add('show'), 10);
+            },
+            renderStats(res, unit) {
+                $('st-profit').innerText = `$${res.stats.net.toLocaleString()}`;
+                $('st-profit').className = res.stats.net > 0 ? "stat-value val-win" : "stat-value val-loss";
+                $('st-roi').innerText = res.stats.cost ? (res.stats.net/res.stats.cost*100).toFixed(1)+'%' : '0%';
+                $('st-winrate').innerText = res.stats.trades ? (res.stats.wins/res.stats.trades*100).toFixed(1)+'%' : '0%';
+                $('st-count').innerText = res.stats.count || 0;
+                $('st-max-win').innerText = res.stats.maxW;
+                $('st-max-loss').innerText = res.stats.maxL;
+                $('st-mdd').innerText = res.stats.mdd.toLocaleString();
+                $('last-bet-date').innerText = res.lastDate;
+            },
+            renderHistory() {
+                const t = $('fullHistoryBody'); t.innerHTML = '';
+                const start = (AppState.page-1)*10, end = Math.min(start+10, AppState.history.length);
+                $('pageInfo').innerText = `第 ${AppState.page} / ${Math.ceil(AppState.history.length/10) || 1} 頁`;
+                
+                for(let i=start; i<end; i++) {
+                    let row = AppState.history[i];
+                    let balls = row.numbers.map(n => {
+                        let cls = 'num-ball';
+                        if(AppState.mode==='A') {
+                            if(CONST.HEADS[0].includes(n)) cls+=' num-hit-0';
+                            else if(CONST.HEADS[row.heads.p1].includes(n)) cls+=' num-hit-1';
+                            else if(row.signal.includes('&') && CONST.HEADS[row.heads.p2].includes(n)) cls+=' num-hit-2';
+                        } else if(row.targets.includes(n)) cls+=' num-hit-1';
+                        return `<span class="${cls}">${n<10?'0'+n:n}</span>`;
+                    }).join('');
+                    
+                    t.innerHTML += `<tr><td style="color:#bdc3c7">${row.date.slice(5)}</td><td>${balls}</td><td style="color:#f59e0b">${row.signal}</td><td>$${row.cost}</td><td style="font-weight:bold; color:${row.net>0?'#34d399':'#f87171'}">${row.net}</td><td><span class="res-badge ${row.isWin?'badge-win':'badge-loss'}">${row.isWin?'WIN':'LOSS'}</span></td></tr>`;
+                }
+            },
+            renderChart() {
+                if(AppState.chart) AppState.chart.destroy();
+                let acc = 0, data = AppState.history.slice().reverse().map(d => acc += d.net);
+                let labels = AppState.history.slice().reverse().map(d => d.date);
+                
+                const ctx = $('equityChart').getContext('2d');
+                const gradient = ctx.createLinearGradient(0,0,0,300);
+                gradient.addColorStop(0, 'rgba(16, 185, 129, 0.5)'); gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+                
+                AppState.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets: [{ label:'損益', data, borderColor: data[data.length-1]>=0?'#10b981':'#ef4444', backgroundColor: gradient, fill: true, borderWidth:2, pointRadius:0, tension:0.1 }] },
+                    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ x:{grid:{display:false}, ticks:{callback:v=>labels[v].slice(5), maxTicksLimit:10}}, y:{grid:{color:'rgba(255,255,255,0.05)'}} } },
+                    plugins: [{
+                        id: 'yrBg', beforeDraw: (c) => {
+                            const ctx = c.ctx, x = c.scales.x;
+                            let curYr = null, startX = x.getPixelForValue(0);
+                            c.data.labels.forEach((l, i) => {
+                                let y = l.split('/')[0];
+                                if(y !== curYr) {
+                                    if(curYr) { ctx.fillStyle = parseInt(curYr)%2 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)'; ctx.fillRect(startX, c.chartArea.top, x.getPixelForValue(i)-startX, c.chartArea.height); ctx.fillStyle='rgba(255,255,255,0.1)'; ctx.fillText(curYr, startX+10, c.chartArea.top+20); }
+                                    curYr = y; startX = x.getPixelForValue(i);
+                                }
+                            });
+                            ctx.fillStyle = parseInt(curYr)%2 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.08)'; ctx.fillRect(startX, c.chartArea.top, x.getPixelForValue(c.data.labels.length-1)-startX, c.chartArea.height);
+                        }
                     }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                title: (context) => context[0].label,
-                                label: function(context) {
-                                    return '累積損益: $' + context.parsed.y.toLocaleString();
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false }, 
-                            ticks: { 
-                                color: '#95a5a6', 
-                                maxTicksLimit: 12,
-                                callback: function(val, index) {
-                                    const label = this.getLabelForValue(val);
-                                    return label.slice(5); 
-                                }
-                            }
-                        },
-                        y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#bdc3c7' }
-                        }
-                    }
-                },
-                plugins: [yearBackgroundPlugin] 
-            });
-        }
-
-        // ==========================================
-        //  FIXED: MISSING FUNCTION RESTORED
-        // ==========================================
-        function predictNextDraw() {
-            let nextDate = getNextDrawDate(fullData[0].date);
-            document.getElementById('nextDrawDate').innerText = nextDate.dateStr;
-            document.getElementById('nextWeekday').innerText = nextDate.weekdayStr;
-            
-            if (currentMode === 'A') {
-                let past20 = fullData.slice(0, 20);
-                let counts = getHeadCounts(past20);
-                let others = {1: counts[1], 2: counts[2], 3: counts[3]};
-                let sorted = Object.keys(others).sort((a,b) => others[b] - others[a]);
-                let p1 = parseInt(sorted[0]);
-                let p2 = parseInt(sorted[1]);
-                let gap = others[p1] - others[p2];
-                let count0 = counts[0];
-                let dayIdx = nextDate.dayIdx; 
-                
-                let signalType = "stop";
-                let comboText = "暫停下注";
-                let descText = "濾網未過";
-
-                let passFilter = false;
-                let reason = "";
-
-                if (currentStrategyA === 'sniper_new' || currentStrategyA === 'peak_martingale') {
-                    if (dayIdx === 2) reason = "週二避戰";
-                    else if (count0 > 25) reason = "0頭過熱(>25)";
-                    else passFilter = true;
-                } else if (currentStrategyA === 'shield_new') {
-                    if (dayIdx === 2 || dayIdx === 3) reason = "週二三避戰";
-                    else if (count0 > 22) reason = "0頭過熱(>22)";
-                    else passFilter = true;
-                }
-
-                if (passFilter) {
-                    if (currentStrategyA === 'peak_martingale') {
-                        signalType = "strong"; 
-                        comboText = `0+${p1}`;
-                        descText = "極限凹單: 依資金水位決定倍數";
-                    } else {
-                        if (gap >= 6) { signalType="super"; comboText=`0+${p1} (x2)`; descText="強力訊號"; }
-                        else if (gap <= 2) { signalType="strong"; comboText=`0+${p1} & 0+${p2}`; descText="雙龍防禦"; }
-                        else { signalType="weak"; comboText=`0+${p1}`; descText="標準訊號"; }
-                    }
-                } else {
-                    descText = reason;
-                }
-                
-                document.getElementById('pred-combo').innerText = comboText;
-                document.getElementById('pred-desc').innerText = descText;
-                
-                ['btn-super','btn-strong','btn-weak','btn-stop'].forEach(id => document.getElementById(id).classList.remove('active'));
-                document.getElementById(`btn-${signalType}`).classList.add('active');
-
-            } else {
-                let past15 = fullData.slice(0, 15);
-                let numCounts = {};
-                for(let k=1; k<=39; k++) numCounts[k] = 0;
-                past15.forEach(d => d.numbers.forEach(n => numCounts[n]++));
-                
-                let sortedNums = Object.keys(numCounts).sort((a,b) => {
-                    let diff = numCounts[b] - numCounts[a];
-                    if(diff!==0) return diff;
-                    return parseInt(a) - parseInt(b);
                 });
+            },
+            changePage(d) {
+                let max = Math.ceil(AppState.history.length/10);
+                AppState.page = Math.min(Math.max(1, AppState.page+d), max);
+                this.renderHistory();
+            },
+            updatePrediction() {
+                if(!AppState.fullData.length) return;
                 
-                let top1 = sortedNums[0];
-                let top1_c = numCounts[top1];
-                let top2 = sortedNums[1];
-                let top2_c = numCounts[top2];
-                
-                document.getElementById('sniper-status').style.display = 'none';
-                document.getElementById('sniper-balls-container').style.display = 'flex';
-                
-                document.getElementById('ball-1').innerText = top1 < 10 ? '0'+top1 : top1;
-                document.getElementById('ball-2').innerText = top2 < 10 ? '0'+top2 : top2;
-                
-                const box = document.querySelector('#panel-mode-b .strategy-box');
-                if (top1_c === 6) {
-                    box.style.borderColor = "var(--sniper)";
-                    box.style.background = "rgba(142, 68, 173, 0.1)";
-                    box.innerHTML = `<div style='text-align:center; color:#fff; font-weight:bold;'>🎯 訊號成立 (榜首6次)<br><span style='font-size:12px; font-weight:normal;'>建議下注這兩碼</span></div>`;
+                let d = new Date(AppState.fullData[0].date);
+                d.setDate(d.getDate()+1); if(d.getDay()===0) d.setDate(d.getDate()+1);
+                $('nextDrawDate').innerText = `${d.getMonth()+1}/${d.getDate()}`;
+                $('nextWeekday').innerText = `週${"日一二三四五六"[d.getDay()]}`;
+
+                if(AppState.mode === 'A') {
+                    let past20 = AppState.fullData.slice(0,20);
+                    let counts = past20.reduce((acc,d)=>{ d.numbers.forEach(n=>acc[n<=9?0:(n<=19?1:(n<=29?2:3))]++); return acc;}, {0:0,1:0,2:0,3:0});
+                    let sorted = [1,2,3].sort((a,b)=>counts[b]-counts[a]), p1=sorted[0], p2=sorted[1], gap=counts[p1]-counts[p2];
+                    let strat = $('strategySelect').value, c0 = counts[0];
+                    
+                    // 1. 濾網 (只保留0頭過熱保護)
+                    let pass = true;
+                    if(strat.includes('sniper') || strat.includes('peak')) { if(c0>25) pass=false; }
+                    else if(strat.includes('shield')) { if(c0>22) pass=false; }
+
+                    // 2. 模擬回測以取得當前狀態
+                    let simRes = Strategy.runA(strat, 1);
+                    // 計算目前連勝 (從最新紀錄回推)
+                    let currentStreak = 0;
+                    for(let i=0; i<simRes.hist.length; i++) {
+                        if(simRes.hist[i].isWin) currentStreak++;
+                        else break;
+                    }
+                    
+                    let lastTrade = simRes.hist[0];
+                    let type="weak", txt=`0+${p1}`, sub="標準訊號";
+
+                    if(!pass) { 
+                        type="stop"; txt="暫停下注"; sub="過熱濾網 (0頭過多)"; 
+                    }
+                    else if(strat.includes('peak')) {
+                        // 凹單預測
+                        let nextMult = 1;
+                        if (lastTrade && !lastTrade.isWin) {
+                            let lastTxt = lastTrade.signal;
+                            let match = lastTxt.match(/凹(\d+)x/);
+                            let lastMult = match ? parseInt(match[1]) : 1;
+                            // [1, 2, 5, 14]
+                            if (lastMult === 1) nextMult = 2;
+                            else if (lastMult === 2) nextMult = 5;
+                            else if (lastMult === 5) nextMult = 14;
+                            else nextMult = 14;
+                        }
+                        type="strong"; txt = `0+${p1} (${nextMult}倍)`; sub=`極限凹單: ${nextMult===1?'平注':'追擊'}`;
+                    }
+                    else {
+                        // 連勝追擊邏輯
+                        let nextMult = 1;
+                        // 已完成連勝3 -> 下一把第4局 -> 2倍
+                        // 已完成連勝4 -> 下一把第5局 -> 3倍
+                        // 已完成連勝5+ -> 下一把 -> 4倍
+                        if (currentStreak === 3) nextMult = 2;
+                        else if (currentStreak === 4) nextMult = 3;
+                        else if (currentStreak >= 5) nextMult = 4;
+
+                        if (nextMult > 1) {
+                            type = "super"; 
+                            txt = `🔥連勝x${nextMult} (0+${p1})`; 
+                            sub = `連勝${currentStreak}場: 乘勝追擊`;
+                        } else {
+                            // 無連勝或不足3，走標準
+                            if(gap>=6) { type="super"; txt+= " (x2)"; sub="強力訊號"; }
+                            else if(gap<=2) { type="strong"; txt+= ` & 0+${p2}`; sub="雙龍防禦"; }
+                        }
+                    }
+
+                    $('pred-combo').innerText = txt; $('pred-desc').innerText = sub;
+                    document.querySelectorAll('.signal-btn').forEach(b=>b.classList.remove('active'));
+                    $(`btn-${type}`).classList.add('active');
                 } else {
-                    box.style.borderColor = "#555";
-                    box.style.background = "rgba(0,0,0,0.2)";
-                    box.innerHTML = `<div style='text-align:center; color:#7f8c8d;'>🛑 訊號未成立 (榜首${top1_c}次)<br><span style='font-size:12px;'>需剛好6次才進場</span></div>`;
+                    let past15 = AppState.fullData.slice(0,15), freq={};
+                    past15.forEach(d=>d.numbers.forEach(n=>freq[n]=(freq[n]||0)+1));
+                    let top = Object.keys(freq).sort((a,b)=>freq[b]-freq[a]||a-b);
+                    let t1=top[0], t2=top[1];
+                    
+                    $('ball-1').innerText = t1<10?'0'+t1:t1; $('ball-2').innerText = t2<10?'0'+t2:t2;
+                    $('sniper-balls-container').style.display='flex'; $('sniper-status').style.display='none';
+                    let box = $('sniper-msg-box');
+                    if(freq[t1]===6) { box.style.background='rgba(142,68,173,0.3)'; box.innerHTML='🎯 訊號成立<br>進場操作'; }
+                    else { box.style.background='rgba(0,0,0,0.2)'; box.innerHTML=`🛑 訊號未成立 (榜首${freq[t1]}次)`; }
                 }
             }
-        }
+        };
 
-        function getHeadCounts(history) {
-            let c = {0:0, 1:0, 2:0, 3:0};
-            history.forEach(d => d.numbers.forEach(n => {
-                if(n<=9) c[0]++; else if(n<=19) c[1]++; else if(n<=29) c[2]++; else c[3]++;
-            }));
-            return c;
-        }
+        // --- 5. Main App Controller ---
+        const App = {
+            init() {
+                Data.init();
+                this.setMode('A');
+            },
+            setMode(m) {
+                AppState.mode = m;
+                document.body.className = `mode-${m.toLowerCase()}`;
+                $('btnModeA').className = m==='A'?'mode-btn active':'mode-btn';
+                $('btnModeB').className = m==='B'?'mode-btn active':'mode-btn';
+                $('panel-mode-a').style.display = m==='A'?'block':'none';
+                $('panel-mode-b').style.display = m==='B'?'block':'none';
+                
+                const sel = $('strategySelect'); sel.innerHTML = '';
+                if(m==='A') {
+                    sel.disabled = false;
+                    [['sniper_new','1. 🥇 神射手'],['shield_new','2. 🛡️ 堅盾防禦'],['peak_martingale','3. 💀 極限凹單']].forEach(o=>sel.add(new Option(o[1], o[0])));
+                } else {
+                    sel.disabled = true; sel.add(new Option('Sniper-6 (Original)', 'sniper'));
+                }
+                this.runAnalysis();
+            },
+            runAnalysis() {
+                const fill = $('progressFill'); $('loadingBar').style.display='flex'; fill.style.width='10%';
+                setTimeout(() => {
+                    fill.style.width='100%';
+                    setTimeout(() => {
+                        let unit = parseFloat($('baseUnit').value)||1;
+                        let res = AppState.mode==='A' ? Strategy.runA($('strategySelect').value, unit) : Strategy.runB(unit);
+                        
+                        AppState.history = res.hist;
+                        AppState.page = 1;
+                        UI.renderStats(res, unit);
+                        UI.renderHistory();
+                        UI.renderChart();
+                        UI.updatePrediction();
+                        
+                        let tag = $('strategySelect').options[$('strategySelect').selectedIndex].text;
+                        if(tag.includes('.')) tag = tag.split('.')[1].trim();
+                        $('current-strategy-tag').innerText = tag;
+                        $('loadingBar').style.display='none'; fill.style.width='0%';
+                    }, 300);
+                }, 200);
+            },
+            resetData() {
+                UI.showModal('確認重置', '確定要清除快取並重新下載嗎？', async () => {
+                    localStorage.removeItem(CONST.STORAGE);
+                    AppState.fullData = [];
+                    await Data.init();
+                });
+            },
+            manualInput() {
+                let nums = [1,2,3,4,5].map(i => parseInt($(`m${i}`).value));
+                if(nums.some(isNaN)) return UI.showModal('錯誤', '請輸入完整5個號碼', null);
+                let today = new Date().toISOString().split('T')[0].replace(/-/g,'/');
+                AppState.fullData.unshift({date: today, numbers: nums});
+                Data.merge([]); 
+                $('manualInputSection').style.display='none';
+                this.runAnalysis();
+            }
+        };
 
-        function checkPrizeA(nums, hA, hB) {
-            let hitsA = 0, hitsB = 0, hitsC = 0;
-            let setA = HEADS[hA], setB = HEADS[hB];
-            nums.forEach(n => {
-                if(setA.includes(n)) hitsA++; else if(setB.includes(n)) hitsB++; else hitsC++;
-            });
-            let sorted = [hitsA, hitsB, hitsC].sort((a,b)=>a-b);
-            if(sorted[0]===1 && sorted[1]===2 && sorted[2]===2) return PRIZE_4;
-            if(sorted[0]===1 && sorted[1]===1 && sorted[2]===3) return PRIZE_3;
-            return 0;
-        }
-
-        function getNextDrawDate(lastDateStr) {
-            let last = new Date(lastDateStr);
-            let next = new Date(last);
-            next.setDate(last.getDate() + 1);
-            if(next.getDay() === 0) next.setDate(next.getDate() + 1);
-            
-            let m = (next.getMonth()+1).toString().padStart(2,'0');
-            let d = next.getDate().toString().padStart(2,'0');
-            let w = "日一二三四五六"[next.getDay()];
-            return { dateStr: `${m}/${d}`, weekdayStr: `週${w}`, dayIdx: next.getDay() };
-        }
-
-        function updateStatBox(res) {
-            document.getElementById('st-profit').innerText = `$${res.net.toLocaleString()}`;
-            document.getElementById('st-profit').className = res.net > 0 ? "stat-value val-win" : "stat-value val-loss";
-            let roi = res.cost > 0 ? (res.net / res.cost * 100).toFixed(1) : 0;
-            document.getElementById('st-roi').innerText = `${roi}%`;
-            
-            let winRate = res.tradingDays > 0 ? (res.winDays / res.tradingDays * 100).toFixed(1) : 0;
-            document.getElementById('st-winrate').innerText = `${winRate}%`;
-            
-            document.getElementById('st-count').innerText = res.totalBetUnits || res.tradingDays; 
-            document.getElementById('st-max-win').innerText = res.maxWin;
-            document.getElementById('st-max-loss').innerText = res.maxLoss;
-            document.getElementById('st-mdd').innerText = res.maxDrawdown ? `$${res.maxDrawdown.toLocaleString()}` : '--';
-            document.getElementById('real-test-count-disp').innerText = fullData.length;
-            document.getElementById('st-unit').innerText = document.getElementById('baseUnit').value;
-        }
+        window.onload = () => App.init();
     </script>
 </div>
 </body>
