@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>539 智能操盤系統-精簡版 (v3.0 Safe)</title>
+    <title>539 智能操盤系統 (v3.1 Sequence)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -187,8 +187,8 @@
 
             <div id="panel-mode-a">
                 <div class="signal-grid">
-                    <div id="btn-super" class="signal-btn sig-super">🔥 強力/加碼<br><small>2倍+</small></div>
-                    <div id="btn-strong" class="signal-btn sig-strong">⚡ 雙邊/凹單<br><small>策略特定</small></div>
+                    <div id="btn-super" class="signal-btn sig-super">🔥 強力訊號<br><small>2倍+</small></div>
+                    <div id="btn-strong" class="signal-btn sig-strong">⚡ 凹單訊號<br><small>序列加碼</small></div>
                     <div id="btn-weak" class="signal-btn sig-weak">❄️ 標準訊號<br><small>1倍 P1</small></div>
                     <div id="btn-stop" class="signal-btn sig-stop">🛑 暫停/風險<br><small>濾網未過</small></div>
                 </div>
@@ -337,7 +337,7 @@
             }
         };
 
-        // --- 3. Strategy Logic (Updated with Safe Peak) ---
+        // --- 3. Strategy Logic (With Sequence Martingale) ---
         const Strategy = {
             getHeads(nums) {
                 return nums.reduce((acc, n) => {
@@ -362,12 +362,11 @@
                 let equity=0, peak=0, curW=0, curL=0;
                 let data = AppState.fullData, hist = [];
                 
-                // 資金管理變數
-                let martMult = 1; // 舊策略用
-                let safeSeq = [1, 2, 3, 6, 9]; // 新策略虧損序列
-                let safeIdx = 0; // 當前序列位置
-                let curStreak = 0; // 當前連勝數
-                let lastWin = false; // 上一局是否獲利
+                // Variables for Martingale Logic
+                let martMult = 1; // Standard Peak Martingale
+                const SEQ = [1, 2, 3, 6, 9]; // Sequence Martingale
+                let seqIdx = 0;
+                let lastWin = false;
                 let lastDate = "無";
 
                 for(let i=data.length-21; i>=0; i--) {
@@ -383,8 +382,8 @@
                     let day = new Date(today.date).getDay();
                     
                     let isTrade = false;
-                    // safe_peak 使用與 sniper 相同的濾網：排週二、0頭<=25
-                    if(strategy.includes('sniper') || strategy.includes('peak') || strategy === 'safe_peak') {
+                    // Filter Logic
+                    if(strategy.includes('sniper') || strategy.includes('peak') || strategy === 'seq_martingale') {
                         isTrade = (day!==2 && c0<=25);
                     } else if(strategy.includes('shield')) {
                         isTrade = (day!==2 && day!==3 && c0<=22);
@@ -393,40 +392,34 @@
                     if(isTrade) {
                         let bet = 1, prize = 0, txt = "";
                         
-                        if(strategy === 'safe_peak') {
-                            // --- Safe Peak 邏輯 ---
-                            let isBonus = false;
-                            
-                            // 優先級 1: 連勝加碼
-                            if(curStreak === 3) { bet = 2; isBonus = true; }
-                            else if(curStreak === 5) { bet = 3; isBonus = true; }
-                            else if(curStreak === 7) { bet = 5; isBonus = true; }
-                            else {
-                                // 優先級 2 & 3: 凹單與正常
-                                if(equity >= peak) {
-                                    bet = 1; safeIdx = 0; // 創新高，重置
+                        // Strategy Branching
+                        if(strategy === 'seq_martingale') {
+                            // --- Modified Peak Martingale (Sequence: 1-2-3-6-9) ---
+                            // Logic: If Equity < Peak, follow sequence on loss. Reset on Win or New High.
+                            if(equity >= peak) {
+                                bet = 1; seqIdx = 0;
+                            } else {
+                                // Drawdown mode
+                                if(lastWin) {
+                                    bet = 1; seqIdx = 0; // Win resets sequence
                                 } else {
-                                    // 回撤中
-                                    if(lastWin) { bet = 1; safeIdx = 0; } // 上局贏，重置
-                                    else { bet = safeSeq[safeIdx]; } // 上局輸，照序列
+                                    bet = SEQ[seqIdx]; // Loss moves up sequence
                                 }
                             }
                             
-                            txt = `0+${p1}`;
-                            if(isBonus) txt += ` (🔥x${bet})`;
-                            else if(bet > 1) txt += ` (凹x${bet})`;
-                            
                             prize = this.checkPrizeA(today.numbers, 0, p1) * bet * unit;
+                            txt = `0+${p1} (${bet}x)`;
+                            if(bet > 1) txt = `0+${p1} (凹x${bet})`;
 
                         } else if(strategy.includes('peak')) {
-                            // 舊版極限凹單
+                            // --- Original Peak Martingale (Doubling) ---
                             if(equity >= peak) martMult = 1;
                             else if(!lastWin) martMult = Math.min(martMult*2, 16);
                             bet = martMult;
                             prize = this.checkPrizeA(today.numbers, 0, p1) * bet * unit;
                             txt = `0+${p1} (${bet}x)`;
                         } else {
-                            // Sniper / Shield 一般模式
+                            // --- Standard Sniper / Shield ---
                             if(gap >= 6) { bet=2; prize = this.checkPrizeA(today.numbers, 0, p1)*2*unit; txt=`0+${p1} (x2)`; }
                             else if(gap <= 2) { bet=2; prize = (this.checkPrizeA(today.numbers,0,p1) + this.checkPrizeA(today.numbers,0,p2))*unit; txt=`0+${p1}&${p2}`; }
                             else { prize = this.checkPrizeA(today.numbers, 0, p1)*unit; txt=`0+${p1}`; }
@@ -441,18 +434,17 @@
                         if(equity > peak) peak = equity;
                         if(equity - peak < stats.mdd) stats.mdd = equity - peak;
                         
-                        if(isWin) { 
-                            stats.wins++; curW++; curL=0; 
-                            curStreak++; 
-                            if(curW>stats.maxW) stats.maxW=curW;
-                            // 贏了：safeIdx 不動 (除非下局條件觸發重置)
-                        } else { 
-                            curL++; curW=0; 
-                            curStreak = 0; 
-                            if(curL>stats.maxL) stats.maxL=curL;
-                            // 輸了：若在 Safe Peak 模式下，且處於回撤中，移動序列
-                            if(strategy === 'safe_peak' && equity < peak) {
-                                if(safeIdx < 4) safeIdx++;
+                        if(isWin) { stats.wins++; curW++; curL=0; if(curW>stats.maxW) stats.maxW=curW; }
+                        else { stats.maxL = Math.max(stats.maxL, ++curL); curW=0; }
+                        
+                        // Post-Trade Update for Sequence Logic
+                        if(strategy === 'seq_martingale') {
+                            if(isWin) {
+                                seqIdx = 0; // Reset on win
+                            } else if(equity < peak) {
+                                // Only advance sequence if we are still in drawdown (or just created one)
+                                // And limit index to 4 (value 9)
+                                if(seqIdx < 4) seqIdx++;
                             }
                         }
                         
@@ -601,7 +593,7 @@
                     let strat = $('strategySelect').value, day = d.getDay(), c0 = counts[0];
                     let pass = true, reason = "", type="weak", txt=`0+${p1}`, sub="標準訊號";
 
-                    if(strat.includes('sniper') || strat.includes('peak') || strat === 'safe_peak') { 
+                    if(strat.includes('sniper') || strat.includes('peak') || strat === 'seq_martingale') { 
                         if(day===2) pass=false; if(c0>25) pass=false; 
                     } else if(strat.includes('shield')) { 
                         if(day===2 || day===3) pass=false; if(c0>22) pass=false; 
@@ -609,8 +601,8 @@
 
                     if(!pass) { 
                         type="stop"; txt="暫停下注"; sub="濾網未過"; 
-                    } else if(strat === 'safe_peak') {
-                        type="strong"; sub="請依資金規則下注"; // 因無保留當下狀態，僅提示規則
+                    } else if(strat === 'seq_martingale') {
+                        type="strong"; sub="請依資金規則(1-2-3-6-9)下注"; 
                     } else if(strat.includes('peak')) { 
                         type="strong"; sub="極限凹單模式"; 
                     } else if(gap>=6) { 
@@ -658,7 +650,7 @@
                         ['sniper_new','1. 🥇 神射手'],
                         ['shield_new','2. 🛡️ 堅盾防禦'],
                         ['peak_martingale','3. 💀 極限凹單'],
-                        ['safe_peak','4. 📈 智能倍投 (Safe)']
+                        ['seq_martingale','4. 📉 序列凹單 (1-2-3-6-9)']
                     ].forEach(o=>sel.add(new Option(o[1], o[0])));
                 } else {
                     sel.disabled = true; sel.add(new Option('Sniper-6 (Original)', 'sniper'));
