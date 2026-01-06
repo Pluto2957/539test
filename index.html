@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>539 智能操盤系統 (v4.0 Ultimate)</title>
+    <title>539 智能操盤系統 (v4.2 Chart Fixed)</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -337,7 +337,7 @@
             }
         };
 
-        // --- 3. Strategy Logic (Updated) ---
+        // --- 3. Strategy Logic (FIXED ORDER) ---
         const Strategy = {
             getHeads(nums) {
                 return nums.reduce((acc, n) => {
@@ -449,7 +449,7 @@
                             }
                         }
                     }
-                    // Reverse history back to New -> Old for display
+                    // FIX: Reverse history so table shows Newest -> Oldest
                     hist.reverse();
 
                 } else {
@@ -507,6 +507,8 @@
                             hist.push({ date: today.date, numbers: today.numbers, signal: txt, cost, net, isWin, heads: {p1, p2} });
                         }
                     }
+                    // FIX: Also reverse Old Strategies history to ensure consistency (Newest -> Oldest)
+                    hist.reverse();
                 }
                 return { stats, hist: hist, lastDate };
             },
@@ -600,6 +602,7 @@
             },
             renderChart() {
                 if(AppState.chart) AppState.chart.destroy();
+                // Because history is now New->Old (Reverse Chronological), we need to reverse it back for plotting
                 let acc = 0, data = AppState.history.slice().reverse().map(d => acc += d.net);
                 let labels = AppState.history.slice().reverse().map(d => d.date);
                 
